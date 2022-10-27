@@ -1,0 +1,4 @@
+stm32f4xx_hal_fmpi2c_ex.c:93:19:HAL_FMPI2CEx_ConfigAnalogFilter	16	static
+stm32f4xx_hal_fmpi2c_ex.c:137:19:HAL_FMPI2CEx_ConfigDigitalFilter	24	static
+stm32f4xx_hal_fmpi2c_ex.c:210:6:HAL_FMPI2CEx_EnableFastModePlus	24	static
+stm32f4xx_hal_fmpi2c_ex.c:233:6:HAL_FMPI2CEx_DisableFastModePlus	24	static
