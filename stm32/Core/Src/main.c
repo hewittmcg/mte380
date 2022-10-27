@@ -32,6 +32,14 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+// Motors used in murphy.
+typedef enum {
+	FRONT_LEFT_MOTOR = 0,
+	FRONT_RIGHT_MOTOR,
+	REAR_LEFT_MOTOR,
+	REAR_RIGHT_MOTOR,
+	NUM_MOTORS,
+} Motor;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -53,7 +61,29 @@ TIM_HandleTypeDef htim1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-
+// Motor controller definition
+static MotorController controllers[NUM_MOTORS] = {
+		[FRONT_LEFT_MOTOR] = { 
+			.in1_pin = {11, GPIOC},
+			.in2_pin = {10, GPIOC},
+			.en_pin = {&htim1, TIM_CHANNEL_3, &TIM1->CCR3},
+		},
+		[FRONT_RIGHT_MOTOR] = { 
+			.in1_pin = {11, GPIOC},
+			.in2_pin = {10, GPIOC},
+			.en_pin = {&htim1, TIM_CHANNEL_3, &TIM1->CCR3},
+		},
+		[REAR_LEFT_MOTOR] = { 
+			.in1_pin = {11, GPIOC},
+			.in2_pin = {10, GPIOC},
+			.en_pin = {&htim1, TIM_CHANNEL_3, &TIM1->CCR3},
+		},
+		[REAR_RIGHT_MOTOR] = { 
+			.in1_pin = {11, GPIOC},
+			.in2_pin = {10, GPIOC},
+			.en_pin = {&htim1, TIM_CHANNEL_3, &TIM1->CCR3},
+		},
+};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -111,17 +141,19 @@ int main(void)
   MX_SPI2_Init();
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
-  // testing
-  set_motor_direction(FRONT_LEFT_MOTOR, MOTOR_DIR_FORWARD);
-
-  TIM1->CCR3 = 60000;
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+  // Initialize FL motor (currently only one with correctly mapped pins)
+  motor_init(&controllers[FRONT_LEFT_MOTOR]);
+  set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_FORWARD);
+  
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    for(int i = 0; i <= 10; i++) {
+      set_motor_speed(&controllers[FRONT_LEFT_MOTOR], i * 10);
+    }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

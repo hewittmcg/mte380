@@ -7,30 +7,41 @@
 
 
 #include "l298n_motor_controller.h"
-#include "stm32f4xx_hal.h"
 
-/* TODO
-typedef struct {
-	uint32t
-};
-typedef struct {
-	uint32_t in1_pin;
-	uint32_t in2_pin;
-	GPIO_TypeDef *port;
-} MotorController;
+// CCR register goes from 0 to 0xffff
+#define SPEED_PERCENT_TO_CCR 0xffff
 
-static MotorController[NUM_MOTORS] controllers = {
-		[FRONT_LEFT_MOTOR] = {0, 0},
-		[FRONT_RIGHT_MOTOR] = {
-};
-*/
-// Pin definitions
-void set_motor_direction(Motor motor, MotorDir dir) {
-	// Just one for testing
-	if(motor == FRONT_LEFT_MOTOR) {
-		if(dir == MOTOR_DIR_FORWARD) {
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_11, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_10, GPIO_PIN_SET);
-		}
+#define PERCENT_TO_DEC 100
+
+bool set_motor_direction(MotorController *mc, MotorDir dir) {
+	if(dir == MOTOR_DIR_FORWARD) {
+		HAL_GPIO_WritePin(mc->in1_pin.port, mc->in1_pin.pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(mc->in2_pin.port, mc->in2_pin.pin, GPIO_PIN_SET);
+	} else if(dir == MOTOR_DIR_BACKWARD) {
+		HAL_GPIO_WritePin(mc->in1_pin.port, mc->in1_pin.pin, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(mc->in2_pin.port, mc->in2_pin.pin, GPIO_PIN_RESET);
+	} else if(dir == MOTOR_DIR_OFF) {
+		// TODO: Not sure if this is correct
+		HAL_GPIO_WritePin(mc->in1_pin.port, mc->in1_pin.pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(mc->in2_pin.port, mc->in2_pin.pin, GPIO_PIN_RESET);
 	}
+	return true;
+}
+
+bool set_motor_speed(MotorController *mc, uint8_t speed_percent) {
+	if(speed_percent > 100) {
+		return false;
+	}
+	// Get value to set CCR to
+	uint16_t ccr_val = (uint16_t)((float)speed_percent / PERCENT_TO_DEC * SPEED_PERCENT_TO_CCR);
+	*(mc->en_pin.ccr_ptr) = ccr_val;
+	
+	return true;
+}
+
+bool motor_init(MotorController *mc) {
+	set_motor_direction(mc, MOTOR_DIR_OFF);
+
+	HAL_TIM_PWM_Start(mc->en_pin.tim_handle, mc->en_pin.tim_channel);
+	return true;
 }
