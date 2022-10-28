@@ -75,9 +75,9 @@ static MotorController controllers[NUM_MOTORS] = {
 			.en_pin = {&htim1, TIM_CHANNEL_3, &TIM1->CCR3},
 		},
 		[REAR_LEFT_MOTOR] = { 
-			.in1_pin = {GPIO_PIN_11, GPIOC},
-			.in2_pin = {GPIO_PIN_10, GPIOC},
-			.en_pin = {&htim1, TIM_CHANNEL_3, &TIM1->CCR3},
+			.in1_pin = {GPIO_PIN_15, GPIOA},
+			.in2_pin = {GPIO_PIN_1, GPIOA},
+			.en_pin = {&htim1, TIM_CHANNEL_4, &TIM1->CCR4},
 		},
 		[REAR_RIGHT_MOTOR] = { 
 			.in1_pin = {GPIO_PIN_11, GPIOC},
@@ -466,6 +466,10 @@ static void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
+  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
+  {
+    Error_Handler();
+  }
   sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
   sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
   sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
@@ -533,7 +537,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1|LD2_Pin|GPIO_PIN_15, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14|GPIO_PIN_15, GPIO_PIN_RESET);
@@ -547,12 +551,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : LD2_Pin */
-  GPIO_InitStruct.Pin = LD2_Pin;
+  /*Configure GPIO pins : PA1 LD2_Pin PA15 */
+  GPIO_InitStruct.Pin = GPIO_PIN_1|LD2_Pin|GPIO_PIN_15;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PB14 PB15 */
   GPIO_InitStruct.Pin = GPIO_PIN_14|GPIO_PIN_15;
