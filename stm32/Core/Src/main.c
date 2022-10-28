@@ -144,7 +144,7 @@ int main(void)
   MX_TIM1_Init();
   MX_TIM8_Init();
   /* USER CODE BEGIN 2 */
-  // Initialize FR and FL motors (currently only ones with correctly mapped pins)
+  // Initialize FR and FL motors (currently rear MC is untested)
   motor_init(&controllers[FRONT_LEFT_MOTOR]);
   motor_init(&controllers[FRONT_RIGHT_MOTOR]);
 
