@@ -64,23 +64,23 @@ UART_HandleTypeDef huart2;
 // Motor controller definition
 static MotorController controllers[NUM_MOTORS] = {
 		[FRONT_LEFT_MOTOR] = { 
-			.in1_pin = {11, GPIOC},
-			.in2_pin = {10, GPIOC},
+			.in1_pin = {GPIO_PIN_11, GPIOC},
+			.in2_pin = {GPIO_PIN_10, GPIOC},
 			.en_pin = {&htim1, TIM_CHANNEL_3, &TIM1->CCR3},
 		},
 		[FRONT_RIGHT_MOTOR] = { 
-			.in1_pin = {11, GPIOC},
-			.in2_pin = {10, GPIOC},
+			.in1_pin = {GPIO_PIN_11, GPIOC},
+			.in2_pin = {GPIO_PIN_10, GPIOC},
 			.en_pin = {&htim1, TIM_CHANNEL_3, &TIM1->CCR3},
 		},
 		[REAR_LEFT_MOTOR] = { 
-			.in1_pin = {11, GPIOC},
-			.in2_pin = {10, GPIOC},
+			.in1_pin = {GPIO_PIN_11, GPIOC},
+			.in2_pin = {GPIO_PIN_10, GPIOC},
 			.en_pin = {&htim1, TIM_CHANNEL_3, &TIM1->CCR3},
 		},
 		[REAR_RIGHT_MOTOR] = { 
-			.in1_pin = {11, GPIOC},
-			.in2_pin = {10, GPIOC},
+			.in1_pin = {GPIO_PIN_11, GPIOC},
+			.in2_pin = {GPIO_PIN_10, GPIOC},
 			.en_pin = {&htim1, TIM_CHANNEL_3, &TIM1->CCR3},
 		},
 };
@@ -142,8 +142,9 @@ int main(void)
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
   // Initialize FL motor (currently only one with correctly mapped pins)
-  motor_init(&controllers[FRONT_LEFT_MOTOR]);
-  set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_FORWARD);
+  motor_init(&controllers[FRONT_RIGHT_MOTOR]);
+
+  set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_FORWARD);
   
   /* USER CODE END 2 */
 
@@ -152,7 +153,8 @@ int main(void)
   while (1)
   {
     for(int i = 0; i <= 10; i++) {
-      set_motor_speed(&controllers[FRONT_LEFT_MOTOR], i * 10);
+      set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], i * 10);
+      HAL_Delay(5000);
     }
     /* USER CODE END WHILE */
 
