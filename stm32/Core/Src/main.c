@@ -62,11 +62,12 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 // Motor controller definition
+// Currently only front left and front right are correct
 static MotorController controllers[NUM_MOTORS] = {
-		[FRONT_LEFT_MOTOR] = { 
-			.in1_pin = {GPIO_PIN_11, GPIOC},
-			.in2_pin = {GPIO_PIN_10, GPIOC},
-			.en_pin = {&htim1, TIM_CHANNEL_3, &TIM1->CCR3},
+		[FRONT_LEFT_MOTOR] = {
+			.in1_pin = {GPIO_PIN_14, GPIOB},
+			.in2_pin = {GPIO_PIN_15, GPIOB},
+			.en_pin = {&htim1, TIM_CHANNEL_2, &TIM1->CCR2},
 		},
 		[FRONT_RIGHT_MOTOR] = { 
 			.in1_pin = {GPIO_PIN_11, GPIOC},
@@ -141,10 +142,12 @@ int main(void)
   MX_SPI2_Init();
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
-  // Initialize FL motor (currently only one with correctly mapped pins)
+  // Initialize FR and FL motors (currently only ones with correctly mapped pins)
+  motor_init(&controllers[FRONT_LEFT_MOTOR]);
   motor_init(&controllers[FRONT_RIGHT_MOTOR]);
 
   set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_FORWARD);
+  set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_FORWARD);
   
   /* USER CODE END 2 */
 
@@ -154,11 +157,13 @@ int main(void)
   {
     for(int i = 0; i <= 1000; i++) {
       set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], i / 10);
+      set_motor_speed(&controllers[FRONT_LEFT_MOTOR], i / 10);
       HAL_Delay(5);
     }
 
     for(int i = 0; i <= 1000; i++) {
 	  set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (1000 - i) / 10);
+	  set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (1000 - i) / 10);
 	  HAL_Delay(5);
 	}
     /* USER CODE END WHILE */
@@ -453,6 +458,10 @@ static void MX_TIM1_Init(void)
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
   sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
   if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
   {
     Error_Handler();
@@ -527,6 +536,9 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14|GPIO_PIN_15, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_10|GPIO_PIN_11, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : B1_Pin */
@@ -541,6 +553,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PB14 PB15 */
+  GPIO_InitStruct.Pin = GPIO_PIN_14|GPIO_PIN_15;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PC10 PC11 */
   GPIO_InitStruct.Pin = GPIO_PIN_10|GPIO_PIN_11;
