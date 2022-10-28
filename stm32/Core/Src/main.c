@@ -152,10 +152,15 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    for(int i = 0; i <= 10; i++) {
-      set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], i * 10);
-      HAL_Delay(5000);
+    for(int i = 0; i <= 1000; i++) {
+      set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], i / 10);
+      HAL_Delay(5);
     }
+
+    for(int i = 0; i <= 1000; i++) {
+	  set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (1000 - i) / 10);
+	  HAL_Delay(5);
+	}
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -416,7 +421,7 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 71;
+  htim1.Init.Prescaler = 0;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim1.Init.Period = 65535;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
