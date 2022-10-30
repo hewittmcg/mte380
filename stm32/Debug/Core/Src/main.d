@@ -32,7 +32,17 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_fmpi2c.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_fmpi2c_ex.h \
- ../Core/Inc/l298n_motor_controller.h
+ ../Core/Inc/l298n_motor_controller.h \
+ C:/Users/erfan/University/3B/MTE380_Project/mte380/stm32/Drivers/VL53L0X/core/inc/vl53l0x_api.h \
+ c:\users\erfan\university\3b\mte380_project\mte380\stm32\drivers\vl53l0x\core\inc\vl53l0x_api_strings.h \
+ c:\users\erfan\university\3b\mte380_project\mte380\stm32\drivers\vl53l0x\core\inc\vl53l0x_def.h \
+ c:\users\erfan\university\3b\mte380_project\mte380\stm32\drivers\vl53l0x\core\inc\vl53l0x_device.h \
+ c:\users\erfan\university\3b\mte380_project\mte380\stm32\drivers\vl53l0x\platform\inc\vl53l0x_types.h \
+ c:\users\erfan\university\3b\mte380_project\mte380\stm32\drivers\vl53l0x\platform\inc\vl53l0x_platform.h \
+ c:\users\erfan\university\3b\mte380_project\mte380\stm32\drivers\vl53l0x\core\inc\vl53l0x_def.h \
+ c:\users\erfan\university\3b\mte380_project\mte380\stm32\drivers\vl53l0x\platform\inc\vl53l0x_platform_log.h \
+ c:\users\erfan\university\3b\mte380_project\mte380\stm32\drivers\vl53l0x\core\inc\vl53l0x_def.h \
+ c:\users\erfan\university\3b\mte380_project\mte380\stm32\drivers\vl53l0x\platform\inc\vl53l0x_platform.h
 
 ../Core/Inc/main.h:
 
@@ -103,3 +113,23 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_fmpi2c_ex.h:
 
 ../Core/Inc/l298n_motor_controller.h:
+
+C:/Users/erfan/University/3B/MTE380_Project/mte380/stm32/Drivers/VL53L0X/core/inc/vl53l0x_api.h:
+
+c:\users\erfan\university\3b\mte380_project\mte380\stm32\drivers\vl53l0x\core\inc\vl53l0x_api_strings.h:
+
+c:\users\erfan\university\3b\mte380_project\mte380\stm32\drivers\vl53l0x\core\inc\vl53l0x_def.h:
+
+c:\users\erfan\university\3b\mte380_project\mte380\stm32\drivers\vl53l0x\core\inc\vl53l0x_device.h:
+
+c:\users\erfan\university\3b\mte380_project\mte380\stm32\drivers\vl53l0x\platform\inc\vl53l0x_types.h:
+
+c:\users\erfan\university\3b\mte380_project\mte380\stm32\drivers\vl53l0x\platform\inc\vl53l0x_platform.h:
+
+c:\users\erfan\university\3b\mte380_project\mte380\stm32\drivers\vl53l0x\core\inc\vl53l0x_def.h:
+
+c:\users\erfan\university\3b\mte380_project\mte380\stm32\drivers\vl53l0x\platform\inc\vl53l0x_platform_log.h:
+
+c:\users\erfan\university\3b\mte380_project\mte380\stm32\drivers\vl53l0x\core\inc\vl53l0x_def.h:
+
+c:\users\erfan\university\3b\mte380_project\mte380\stm32\drivers\vl53l0x\platform\inc\vl53l0x_platform.h:

@@ -9,6 +9,8 @@ RM := rm -rf
 
 # All of the sources participating in the build are defined here
 -include sources.mk
+-include Drivers/VL53L0X/platform/src/subdir.mk
+-include Drivers/VL53L0X/core/src/subdir.mk
 -include Drivers/STM32F4xx_HAL_Driver/Src/subdir.mk
 -include Core/Startup/subdir.mk
 -include Core/Src/subdir.mk
@@ -61,8 +63,8 @@ all: main-build
 main-build: murphy.elf secondary-outputs
 
 # Tool invocations
-murphy.elf: $(OBJS) $(USER_OBJS) C:\Users\hmcga\mte380\stm32\STM32F446RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "murphy.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\hmcga\mte380\stm32\STM32F446RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="murphy.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+murphy.elf: $(OBJS) $(USER_OBJS) C:\Users\erfan\University\3B\MTE380_Project\mte380\stm32\STM32F446RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "murphy.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\erfan\University\3B\MTE380_Project\mte380\stm32\STM32F446RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="murphy.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
