@@ -32,6 +32,9 @@
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
+#define BASE_MOTOR_SPEED = 10;
+#define MM_TO_CM = 1/10;
+
 /* USER CODE BEGIN PD */
 
 // following will be needed for power cycling
@@ -65,6 +68,8 @@ struct TOF_Calibration{
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+
+/* USER CODE BEGIN PV */
 FMPI2C_HandleTypeDef hfmpi2c1;
 
 I2C_HandleTypeDef hi2c1;
@@ -80,15 +85,12 @@ UART_HandleTypeDef huart2;
 
 static int RIGHT_MOTOR_SPEED;
 static int LEFT_MOTOR_SPEED;
-static int BASE_MOTOR_SPEED = 75;
 
-/* USER CODE BEGIN PV */
-
-VL53L0X_Dev_t  vl53l0x_1; // top left
+VL53L0X_Dev_t  vl53l0x_1; // front left
 VL53L0X_DEV    DevI2C1 = &vl53l0x_1;
-VL53L0X_Dev_t  vl53l0x_2; // bottom left
+VL53L0X_Dev_t  vl53l0x_2; // rear left
 VL53L0X_DEV    DevI2C2 = &vl53l0x_2;
-VL53L0X_Dev_t  vl53l0x_3; // bottom right
+VL53L0X_Dev_t  vl53l0x_3; // rear right
 VL53L0X_DEV    DevI2C3 = &vl53l0x_3;
 
 void TOF_Init(VL53L0X_DEV dev, struct TOF_Calibration tof){
@@ -118,9 +120,9 @@ void CourseCorrection(
   struct TOF_Calibration TOF_RR
   ) {
   VL53L0X_PerformSingleRangingMeasurement(DevI2C1, &TOF_FL.RangingData);
-  VL53L0X_PerformSingleRangingMeasurement(DevI2C1, &TOF_RL.RangingData);
-  float front = TOF_FL.RangingData.RangeMilliMeter/10;
-  float rear = TOF_RL.RangingData.RangeMilliMeter/10;
+  VL53L0X_PerformSingleRangingMeasurement(DevI2C2, &TOF_RL.RangingData);
+  float front = TOF_FL.RangingData.RangeMilliMeter*MM_TO_CM;
+  float rear = TOF_RL.RangingData.RangeMilliMeter*MM_TO_CM;
   if (front > rear) {
     int x = (front - rear)/front;
 
@@ -143,7 +145,6 @@ void CourseCorrection(
     set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (1+x) * BASE_MOTOR_SPEED);
     set_motor_speed(&controllers[REAR_LEFT_MOTOR], (1+x) * BASE_MOTOR_SPEED);
     LEFT_MOTOR_SPEED = (1+x) * BASE_MOTOR_SPEED;
-
   }
 
 }
