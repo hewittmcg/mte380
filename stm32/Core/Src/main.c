@@ -33,6 +33,12 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+//#define TOF_XSHUT_Pin GPIO_PIN_15
+//#define TOF_XSHUT_GPIO_Port GPIOA
+//#define TOF_INT_Pin GPIO_PIN_3
+//#define TOF_INT_GPIO_Port GPIOB
+
 // Motors used in murphy.
 typedef enum {
 	FRONT_LEFT_MOTOR = 0,
@@ -155,9 +161,9 @@ static void MX_TIM8_Init(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	struct TOF_Calibration TOF_TL;
-	struct TOF_Calibration TOF_BL;
-	struct TOF_Calibration TOF_BR;
+	struct TOF_Calibration TOF_FL;
+	struct TOF_Calibration TOF_RL;
+	struct TOF_Calibration TOF_RR;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -195,9 +201,9 @@ int main(void)
   DevI2C3->I2cHandle = &hi2c3;
   DevI2C3->I2cDevAddr = 0x52;
 
-  TOF_Init(DevI2C1, TOF_TL);
-  TOF_Init(DevI2C2, TOF_BL);
-  TOF_Init(DevI2C3, TOF_BR);
+  TOF_Init(DevI2C1, TOF_FL);
+  TOF_Init(DevI2C2, TOF_RL);
+  TOF_Init(DevI2C3, TOF_RR);
 
   // Initialize FR and FL motors (currently rear MC is untested)
   motor_init(&controllers[FRONT_LEFT_MOTOR]);
@@ -212,21 +218,6 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	int data[3];
-	while (1) {
-//		VL53L0X_PerformSingleRangingMeasurement(DevI2C1, &TOF_TL.RangingData);
-//		VL53L0X_PerformSingleRangingMeasurement(DevI2C2, &TOF_BL.RangingData);
-		VL53L0X_PerformSingleRangingMeasurement(DevI2C3, &TOF_BR.RangingData);
-//		printf("Range: %d\n", TOF_TL.RangingData.RangeMilliMeter);
-//		if (TOF_TL.RangingData.RangeMilliMeter < 300) {
-//			break;
-//		}
-//		data[0] = TOF_TL.RangingData.RangeMilliMeter;
-		data[0] = 0;
-		data[1] = 0;
-//		data[1] = TOF_BL.RangingData.RangeMilliMeter;
-		data[2] = TOF_BR.RangingData.RangeMilliMeter;
-	}
     for(int i = 0; i <= 1000; i++) {
       set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], i / 10);
       set_motor_speed(&controllers[FRONT_LEFT_MOTOR], i / 10);
