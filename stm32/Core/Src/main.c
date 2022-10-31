@@ -34,6 +34,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
+// following will be needed for power cycling
 //#define TOF_XSHUT_Pin GPIO_PIN_15
 //#define TOF_XSHUT_GPIO_Port GPIOA
 //#define TOF_INT_Pin GPIO_PIN_3
@@ -78,9 +79,7 @@ TIM_HandleTypeDef htim8;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-// ERFAN --- 
 
-//VL53L0X_RangingMeasurementData_t RangingData;
 VL53L0X_Dev_t  vl53l0x_1; // top left
 VL53L0X_DEV    DevI2C1 = &vl53l0x_1;
 VL53L0X_Dev_t  vl53l0x_2; // bottom left
