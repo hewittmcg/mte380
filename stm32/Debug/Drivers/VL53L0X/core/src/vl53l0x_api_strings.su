@@ -1,0 +1,8 @@
+vl53l0x_api_strings.c:46:15:VL53L0X_check_part_used	32	static
+vl53l0x_api_strings.c:77:15:VL53L0X_get_device_info	32	static
+vl53l0x_api_strings.c:124:15:VL53L0X_get_device_error_string	32	static
+vl53l0x_api_strings.c:203:15:VL53L0X_get_range_status_string	24	static
+vl53l0x_api_strings.c:245:15:VL53L0X_get_pal_error_string	32	static
+vl53l0x_api_strings.c:335:15:VL53L0X_get_pal_state_string	32	static
+vl53l0x_api_strings.c:381:15:VL53L0X_get_sequence_steps_info	24	static
+vl53l0x_api_strings.c:420:15:VL53L0X_get_limit_check_info	40	static

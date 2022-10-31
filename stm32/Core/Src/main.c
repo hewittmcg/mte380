@@ -23,6 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "l298n_motor_controller.h"
+#include "vl53l0x_api.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -32,6 +33,13 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+// following will be needed for power cycling
+//#define TOF_XSHUT_Pin GPIO_PIN_15
+//#define TOF_XSHUT_GPIO_Port GPIOA
+//#define TOF_INT_Pin GPIO_PIN_3
+//#define TOF_INT_GPIO_Port GPIOB
+
 // Motors used in murphy.
 typedef enum {
 	FRONT_LEFT_MOTOR = 0,
@@ -40,6 +48,15 @@ typedef enum {
 	REAR_RIGHT_MOTOR,
 	NUM_MOTORS,
 } Motor;
+
+struct TOF_Calibration{
+  uint32_t refSpadCount;
+  uint8_t isApertureSpads;
+  uint8_t VhvSettings;
+  uint8_t PhaseCal;
+  VL53L0X_RangingMeasurementData_t RangingData;
+};
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -62,6 +79,35 @@ TIM_HandleTypeDef htim8;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
+
+VL53L0X_Dev_t  vl53l0x_1; // top left
+VL53L0X_DEV    DevI2C1 = &vl53l0x_1;
+VL53L0X_Dev_t  vl53l0x_2; // bottom left
+VL53L0X_DEV    DevI2C2 = &vl53l0x_2;
+VL53L0X_Dev_t  vl53l0x_3; // bottom right
+VL53L0X_DEV    DevI2C3 = &vl53l0x_3;
+
+void TOF_Init(VL53L0X_DEV dev, struct TOF_Calibration tof){
+
+	// VL53L0X init for Single Measurement
+
+	VL53L0X_WaitDeviceBooted( dev );
+	VL53L0X_DataInit( dev );
+	VL53L0X_StaticInit( dev );
+	VL53L0X_PerformRefCalibration(dev, &tof.VhvSettings, &tof.PhaseCal);
+	VL53L0X_PerformRefSpadManagement(dev, &tof.refSpadCount, &tof.isApertureSpads);
+	VL53L0X_SetDeviceMode(dev, VL53L0X_DEVICEMODE_SINGLE_RANGING);
+
+	// Enable/Disable Sigma and Signal check
+	VL53L0X_SetLimitCheckEnable(dev, VL53L0X_CHECKENABLE_SIGMA_FINAL_RANGE, 1);
+	VL53L0X_SetLimitCheckEnable(dev, VL53L0X_CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, 1);
+	VL53L0X_SetLimitCheckValue(dev, VL53L0X_CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, (FixPoint1616_t)(0.1*65536));
+	VL53L0X_SetLimitCheckValue(dev, VL53L0X_CHECKENABLE_SIGMA_FINAL_RANGE, (FixPoint1616_t)(60*65536));
+	VL53L0X_SetMeasurementTimingBudgetMicroSeconds(dev, 33000);
+	VL53L0X_SetVcselPulsePeriod(dev, VL53L0X_VCSEL_PERIOD_PRE_RANGE, 18);
+	VL53L0X_SetVcselPulsePeriod(dev, VL53L0X_VCSEL_PERIOD_FINAL_RANGE, 14);
+}
+
 // Motor controller pin mappings
 static MotorController controllers[NUM_MOTORS] = {
 		[FRONT_LEFT_MOTOR] = {
@@ -114,7 +160,9 @@ static void MX_TIM8_Init(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+	struct TOF_Calibration TOF_FL;
+	struct TOF_Calibration TOF_RL;
+	struct TOF_Calibration TOF_RR;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -144,6 +192,18 @@ int main(void)
   MX_TIM1_Init();
   MX_TIM8_Init();
   /* USER CODE BEGIN 2 */
+
+  DevI2C1->I2cHandle = &hi2c1;
+  DevI2C1->I2cDevAddr = 0x52;
+  DevI2C2->I2cHandle = &hi2c2;
+  DevI2C2->I2cDevAddr = 0x52;
+  DevI2C3->I2cHandle = &hi2c3;
+  DevI2C3->I2cDevAddr = 0x52;
+
+  TOF_Init(DevI2C1, TOF_FL);
+  TOF_Init(DevI2C2, TOF_RL);
+  TOF_Init(DevI2C3, TOF_RR);
+
   // Initialize FR and FL motors (currently rear MC is untested)
   motor_init(&controllers[FRONT_LEFT_MOTOR]);
   motor_init(&controllers[FRONT_RIGHT_MOTOR]);
