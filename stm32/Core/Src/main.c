@@ -207,27 +207,41 @@ int main(void)
   // Initialize FR and FL motors (currently rear MC is untested)
   motor_init(&controllers[FRONT_LEFT_MOTOR]);
   motor_init(&controllers[FRONT_RIGHT_MOTOR]);
+  motor_init(&controllers[REAR_LEFT_MOTOR]);
+  motor_init(&controllers[REAR_RIGHT_MOTOR]);
 
-  set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_FORWARD);
-  set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_FORWARD);
+  set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_OFF);
+  set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_OFF);
+  set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_OFF);
+  set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_OFF);
   
+  set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], 100);
+  set_motor_speed(&controllers[FRONT_LEFT_MOTOR], 90);
+  set_motor_speed(&controllers[REAR_RIGHT_MOTOR], 90);
+  set_motor_speed(&controllers[REAR_LEFT_MOTOR], 90);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    for(int i = 0; i <= 1000; i++) {
-      set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], i / 10);
-      set_motor_speed(&controllers[FRONT_LEFT_MOTOR], i / 10);
-      HAL_Delay(5);
-    }
+	// Wait for button press
+	while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
+	set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_FORWARD);
+	set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_BACKWARD);
+	set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_FORWARD);
+	set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_BACKWARD);
 
-    for(int i = 0; i <= 1000; i++) {
-	  set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (1000 - i) / 10);
-	  set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (1000 - i) / 10);
-	  HAL_Delay(5);
-	}
+	HAL_Delay(1000);
+    while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
+    set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_OFF);
+    set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_OFF);
+    set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_OFF);
+    set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_OFF);
+
+    HAL_Delay(1000);
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -672,11 +686,11 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_10|GPIO_PIN_11, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : B1_Pin */
-  GPIO_InitStruct.Pin = B1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  /*Configure GPIO pin : Pushbutton_Pin */
+  GPIO_InitStruct.Pin = Pushbutton_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(Pushbutton_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PA1 LD2_Pin PA15 */
   GPIO_InitStruct.Pin = GPIO_PIN_1|LD2_Pin|GPIO_PIN_15;
