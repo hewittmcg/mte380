@@ -32,8 +32,8 @@
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
-#define BASE_MOTOR_SPEED = 10;
-#define MM_TO_CM = 1/10;
+#define BASE_MOTOR_SPEED 20
+#define MM_TO_CM 0.1f
 
 /* USER CODE BEGIN PD */
 
@@ -69,7 +69,6 @@ struct TOF_Calibration{
 
 /* Private variables ---------------------------------------------------------*/
 
-/* USER CODE BEGIN PV */
 FMPI2C_HandleTypeDef hfmpi2c1;
 
 I2C_HandleTypeDef hi2c1;
@@ -82,6 +81,7 @@ TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim8;
 
 UART_HandleTypeDef huart2;
+/* USER CODE BEGIN PV */
 
 static int RIGHT_MOTOR_SPEED;
 static int LEFT_MOTOR_SPEED;
@@ -113,16 +113,38 @@ void TOF_Init(VL53L0X_DEV dev, struct TOF_Calibration tof){
 	VL53L0X_SetVcselPulsePeriod(dev, VL53L0X_VCSEL_PERIOD_FINAL_RANGE, 14);
 }
 
+// Motor controller pin mappings
+static MotorController controllers[NUM_MOTORS] = {
+		[FRONT_LEFT_MOTOR] = {
+			.in1_pin = {GPIO_PIN_14, GPIOB},
+			.in2_pin = {GPIO_PIN_15, GPIOB},
+			.en_pin = {&htim1, TIM_CHANNEL_2, &TIM1->CCR2},
+		},
+		[FRONT_RIGHT_MOTOR] = {
+			.in1_pin = {GPIO_PIN_11, GPIOC},
+			.in2_pin = {GPIO_PIN_10, GPIOC},
+			.en_pin = {&htim1, TIM_CHANNEL_3, &TIM1->CCR3},
+		},
+		[REAR_LEFT_MOTOR] = {
+			.in1_pin = {GPIO_PIN_15, GPIOA},
+			.in2_pin = {GPIO_PIN_1, GPIOA},
+			.en_pin = {&htim1, TIM_CHANNEL_4, &TIM1->CCR4},
+		},
+		[REAR_RIGHT_MOTOR] = {
+			.in1_pin = {GPIO_PIN_4, GPIOB},
+			.in2_pin = {GPIO_PIN_5, GPIOB},
+			.en_pin = {&htim8, TIM_CHANNEL_3, &TIM8->CCR3},
+		},
+};
+
 // P control
-void CourseCorrection(
-  struct TOF_Calibration TOF_FL,
-  struct TOF_Calibration TOF_RL,
-  struct TOF_Calibration TOF_RR
-  ) {
-  VL53L0X_PerformSingleRangingMeasurement(DevI2C1, &TOF_FL.RangingData);
-  VL53L0X_PerformSingleRangingMeasurement(DevI2C2, &TOF_RL.RangingData);
-  float front = TOF_FL.RangingData.RangeMilliMeter*MM_TO_CM;
-  float rear = TOF_RL.RangingData.RangeMilliMeter*MM_TO_CM;
+void CourseCorrection() {
+  static VL53L0X_RangingMeasurementData_t tof_fl_rangedata;
+  static VL53L0X_RangingMeasurementData_t tof_rl_rangedata;
+  VL53L0X_PerformSingleRangingMeasurement(DevI2C1, &tof_fl_rangedata);
+  VL53L0X_PerformSingleRangingMeasurement(DevI2C2, &tof_rl_rangedata);
+  float front = tof_fl_rangedata.RangeMilliMeter*MM_TO_CM;
+  float rear = tof_rl_rangedata.RangeMilliMeter*MM_TO_CM;
   if (front > rear) {
     int x = (front - rear)/front;
 
@@ -149,29 +171,6 @@ void CourseCorrection(
 
 }
 
-// Motor controller pin mappings
-static MotorController controllers[NUM_MOTORS] = {
-		[FRONT_LEFT_MOTOR] = {
-			.in1_pin = {GPIO_PIN_14, GPIOB},
-			.in2_pin = {GPIO_PIN_15, GPIOB},
-			.en_pin = {&htim1, TIM_CHANNEL_2, &TIM1->CCR2},
-		},
-		[FRONT_RIGHT_MOTOR] = { 
-			.in1_pin = {GPIO_PIN_11, GPIOC},
-			.in2_pin = {GPIO_PIN_10, GPIOC},
-			.en_pin = {&htim1, TIM_CHANNEL_3, &TIM1->CCR3},
-		},
-		[REAR_LEFT_MOTOR] = { 
-			.in1_pin = {GPIO_PIN_15, GPIOA},
-			.in2_pin = {GPIO_PIN_1, GPIOA},
-			.en_pin = {&htim1, TIM_CHANNEL_4, &TIM1->CCR4},
-		},
-		[REAR_RIGHT_MOTOR] = { 
-			.in1_pin = {GPIO_PIN_4, GPIOB},
-			.in2_pin = {GPIO_PIN_5, GPIOB},
-			.en_pin = {&htim8, TIM_CHANNEL_3, &TIM8->CCR3},
-		},
-};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -255,7 +254,7 @@ int main(void)
   set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_OFF);
   set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_OFF);
   
-  set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (100/80) * BASE_MOTOR_SPEED);
+  set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (2) * BASE_MOTOR_SPEED);
   set_motor_speed(&controllers[FRONT_LEFT_MOTOR], BASE_MOTOR_SPEED);
   set_motor_speed(&controllers[REAR_RIGHT_MOTOR], BASE_MOTOR_SPEED);
   set_motor_speed(&controllers[REAR_LEFT_MOTOR], BASE_MOTOR_SPEED);
@@ -268,20 +267,22 @@ int main(void)
   {
   	// Wait for button press
     while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
+    HAL_Delay(1000);
     set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_FORWARD);
     set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_BACKWARD); // motors wired up backwards, this is forwards
     set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_FORWARD);
     set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_BACKWARD);
     
-    HAL_Delay(1000);
-    while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
+    while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1) {
+      CourseCorrection(&TOF_FL.RangingData, &TOF_RL.RangingData, &TOF_RR.RangingData);
+      HAL_Delay(50);
+    };
     set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_OFF);
     set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_OFF);
     set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_OFF);
     set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_OFF);
     HAL_Delay(1000);
 
-    CourseCorrection(TOF_FL, TOF_RL, TOF_RR);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
