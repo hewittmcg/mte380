@@ -28,24 +28,6 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
-/* USER CODE END PTD */
-
-/* Private define ------------------------------------------------------------*/
-#define BASE_MOTOR_SPEED 35
-#define MM_TO_CM 0.1f
-#define RMOTOR_SCALING_FACTOR 2
-#define FL_CORRECTION 17
-#define RL_CORRECTION (17+36)
-
-/* USER CODE BEGIN PD */
-
-// following will be needed for power cycling
-//#define TOF_XSHUT_Pin GPIO_PIN_15
-//#define TOF_XSHUT_GPIO_Port GPIOA
-//#define TOF_INT_Pin GPIO_PIN_3
-//#define TOF_INT_GPIO_Port GPIOB
-
 // Motors used in murphy.
 typedef enum {
 	FRONT_LEFT_MOTOR = 0,
@@ -62,12 +44,38 @@ struct TOF_Calibration{
   uint8_t PhaseCal;
   VL53L0X_RangingMeasurementData_t RangingData;
 };
+/* USER CODE END PTD */
+
+/* Private define ------------------------------------------------------------*/
+/* USER CODE BEGIN PD */
+
+// following will be needed for power cycling
+//#define TOF_XSHUT_Pin GPIO_PIN_15
+//#define TOF_XSHUT_GPIO_Port GPIOA
+//#define TOF_INT_Pin GPIO_PIN_3
+//#define TOF_INT_GPIO_Port GPIOB
+
+// Motor speeds
+#define BASE_MOTOR_SPEED 25
+#define TURNING_MOTOR_SPEED 100
+
+#define MM_TO_CM 0.1f
+
+#define STOPPING_DISTANCE_CM 37 // TODO: confirm this.
+
+// Scaling factor to compensate for right motor being weaker.
+#define RMOTOR_SCALING_FACTOR 2
+
+// Correction factors for ToF sensors
+#define FL_CORRECTION 17
+#define RL_CORRECTION (FL_CORRECTION + 36)
 
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+#define MIN(a,b) (((a)<(b))?(a):(b))
+#define MAX(a,b) (((a)>(b))?(a):(b))
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -140,39 +148,118 @@ static MotorController controllers[NUM_MOTORS] = {
 		},
 };
 
+// Accelerate and drive forwards.
+static void forward(void) {
+	// Left motors are wired backwards
+	set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_FORWARD);
+	set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_BACKWARD);
+	set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_FORWARD);
+	set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_BACKWARD);
+
+	for (int i = 0; i <= BASE_MOTOR_SPEED; i+=1) {
+		set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], RMOTOR_SCALING_FACTOR * i);
+		set_motor_speed(&controllers[FRONT_LEFT_MOTOR], i);
+		set_motor_speed(&controllers[REAR_RIGHT_MOTOR], RMOTOR_SCALING_FACTOR * i);
+		set_motor_speed(&controllers[REAR_LEFT_MOTOR], i);
+		HAL_Delay(25);
+	}
+}
+
+// Stop the robot.
+static void stop(void) {
+	set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_OFF);
+	set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_OFF);
+	set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_OFF);
+	set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_OFF);
+
+	set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], 0);
+	set_motor_speed(&controllers[REAR_RIGHT_MOTOR], 0);
+	set_motor_speed(&controllers[FRONT_LEFT_MOTOR], 0);
+	set_motor_speed(&controllers[REAR_LEFT_MOTOR], 0);
+
+	HAL_Delay(50); // no idea how long stopping should actually take
+}
+
+// Make a 90 degree right turn.
+static void turn_right(void) {
+  set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_BACKWARD);
+  set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_BACKWARD);
+  set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_BACKWARD);
+  set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_BACKWARD);
+
+  set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], TURNING_MOTOR_SPEED);
+  set_motor_speed(&controllers[REAR_RIGHT_MOTOR], TURNING_MOTOR_SPEED);
+  set_motor_speed(&controllers[FRONT_LEFT_MOTOR], TURNING_MOTOR_SPEED);
+  set_motor_speed(&controllers[REAR_LEFT_MOTOR], TURNING_MOTOR_SPEED);
+
+  HAL_Delay(400);
+
+  stop();
+}
+
 // P control
-void CourseCorrection() {
+static void course_correction(void) {
   static VL53L0X_RangingMeasurementData_t tof_fl_rangedata;
   static VL53L0X_RangingMeasurementData_t tof_rl_rangedata;
-  VL53L0X_PerformSingleRangingMeasurement(DevI2C1, &tof_fl_rangedata);
-  VL53L0X_PerformSingleRangingMeasurement(DevI2C2, &tof_rl_rangedata);
+
+  // TODO: time how long this takes, investigate whether we can use I2C with interrupts to optimize
+  VL53L0X_Error err1 = VL53L0X_PerformSingleRangingMeasurement(DevI2C1, &tof_fl_rangedata);
+  VL53L0X_Error err2 = VL53L0X_PerformSingleRangingMeasurement(DevI2C2, &tof_rl_rangedata);
   float front = tof_fl_rangedata.RangeMilliMeter*MM_TO_CM - FL_CORRECTION;
   float rear = tof_rl_rangedata.RangeMilliMeter*MM_TO_CM - RL_CORRECTION;
 
-  if (front > rear) {
-    int x = (front - rear)/front/3;
+  if(err1 != VL53L0X_ERROR_NONE || err2 != VL53L0X_ERROR_NONE) {
+	  // I2C might be disconnected, so stop to indicate we're having issues
+	  stop();
+	  while(1);
+  }
 
-    set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (1+x) * RMOTOR_SCALING_FACTOR * BASE_MOTOR_SPEED);
-    set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (1+x) * RMOTOR_SCALING_FACTOR * BASE_MOTOR_SPEED);
+  if (front > rear) {
+    float x = (front - rear)/front; // TODO refactor this into a constant
+    x = MAX(x, 3.0f);
+
+    set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (int)((1+x) * RMOTOR_SCALING_FACTOR * BASE_MOTOR_SPEED));
+    set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (int)((1+x) * RMOTOR_SCALING_FACTOR * BASE_MOTOR_SPEED));
     RIGHT_MOTOR_SPEED = (1+x) * RMOTOR_SCALING_FACTOR * BASE_MOTOR_SPEED;
-    
+
     set_motor_speed(&controllers[FRONT_LEFT_MOTOR], BASE_MOTOR_SPEED);
     set_motor_speed(&controllers[REAR_LEFT_MOTOR], BASE_MOTOR_SPEED);
     LEFT_MOTOR_SPEED = BASE_MOTOR_SPEED;
   }
 
   if (rear > front) {
-    int x = (rear - front)/rear/3;
+    float x = (rear - front)/rear; // TODO refactor this into a constant
+    x = MAX(x, 3.0f);
 
     set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], RMOTOR_SCALING_FACTOR * BASE_MOTOR_SPEED);
     set_motor_speed(&controllers[REAR_RIGHT_MOTOR], RMOTOR_SCALING_FACTOR * BASE_MOTOR_SPEED);
     RIGHT_MOTOR_SPEED = RMOTOR_SCALING_FACTOR * BASE_MOTOR_SPEED;
-    
-    set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (1+x) * BASE_MOTOR_SPEED);
-    set_motor_speed(&controllers[REAR_LEFT_MOTOR], (1+x) * BASE_MOTOR_SPEED);
+
+    set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
+    set_motor_speed(&controllers[REAR_LEFT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
     LEFT_MOTOR_SPEED = (1+x) * BASE_MOTOR_SPEED;
   }
 
+}
+
+// Check if the forward-facing ToF sensor detects a wall and turn 90 degrees to the right if so.
+// This is a blocking call.
+void detect_wall_and_turn(void) {
+	static VL53L0X_RangingMeasurementData_t tof_fr_rangedata;
+	VL53L0X_PerformSingleRangingMeasurement(DevI2C3, &tof_fr_rangedata);
+
+	if(tof_fr_rangedata.RangeMilliMeter*MM_TO_CM < STOPPING_DISTANCE_CM) {
+		// Execute right turn and continue
+		stop();
+
+		HAL_Delay(1000);
+
+		turn_right();
+
+		HAL_Delay(1000);
+
+		forward();
+	}
 }
 
 /* USER CODE END PV */
@@ -237,6 +324,7 @@ int main(void)
   MX_TIM8_Init();
   /* USER CODE BEGIN 2 */
 
+  // Set up I2C ports for TOF sensors
   DevI2C1->I2cHandle = &hi2c1;
   DevI2C1->I2cDevAddr = 0x52;
   DevI2C2->I2cHandle = &hi2c2;
@@ -257,11 +345,6 @@ int main(void)
   set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_OFF);
   set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_OFF);
   set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_OFF);
-  
-  set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (2) * BASE_MOTOR_SPEED);
-  set_motor_speed(&controllers[FRONT_LEFT_MOTOR], BASE_MOTOR_SPEED);
-  set_motor_speed(&controllers[REAR_RIGHT_MOTOR], BASE_MOTOR_SPEED);
-  set_motor_speed(&controllers[REAR_LEFT_MOTOR], BASE_MOTOR_SPEED);
 
   /* USER CODE END 2 */
 
@@ -269,18 +352,19 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-  	// Wait for button press
+  	// Wait for button press before moving forward
     while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
     HAL_Delay(1000);
-//    move_forward(BASE_MOTOR_SPEED);
+    forward();
     while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1) {
-      CourseCorrection(&TOF_FL.RangingData, &TOF_RL.RangingData, &TOF_RR.RangingData);
+      course_correction();
+      detect_wall_and_turn();
+
+      // TODO: we may want to remove this delay, not sure if it's necessary
       HAL_Delay(50);
     };
-    set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_OFF);
-    set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_OFF);
-    set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_OFF);
-    set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_OFF);
+
+    stop();
     HAL_Delay(1000);
 
     /* USER CODE END WHILE */
