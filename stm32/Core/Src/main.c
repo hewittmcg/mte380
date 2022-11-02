@@ -33,8 +33,9 @@
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
-#define BASE_MOTOR_SPEED 50
+#define BASE_MOTOR_SPEED 100
 #define MM_TO_CM 0.1f
+#define RR_OFFSET 4.7f
 
 /* USER CODE BEGIN PD */
 
@@ -207,26 +208,14 @@ void course_correction() {
 
 // steering - untested
 void turn_right() {
-  float front = get_tof_rangedata(FL_I2C1);
-  float rear = get_tof_rangedata(RL_I2C2);
+//  float front = get_tof_rangedata(FL_I2C1);
+//  float rear = get_tof_rangedata(RL_I2C2);
 
-  set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], BASE_MOTOR_SPEED);
-  set_motor_speed(&controllers[REAR_RIGHT_MOTOR], BASE_MOTOR_SPEED);
-  rMotorSpeed = BASE_MOTOR_SPEED;
-  
-  set_motor_speed(&controllers[FRONT_LEFT_MOTOR], -1 * BASE_MOTOR_SPEED);
-  set_motor_speed(&controllers[REAR_LEFT_MOTOR], -1 * BASE_MOTOR_SPEED);
-  lMotorSpeed = -1 * BASE_MOTOR_SPEED;
+	set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_BACKWARD);
+	set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_BACKWARD);
+	set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_BACKWARD);
+	set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_BACKWARD);
 
-  front = get_tof_rangedata(FL_I2C1);
-  rear = get_tof_rangedata(RL_I2C2);
-
-  // number needs to be played around with
-  float margin = 2;
-  while ( abs(front - rear) > margin ) {
-    front = get_tof_rangedata(FL_I2C1);
-    rear = get_tof_rangedata(RL_I2C2);
-  }
 
   set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], BASE_MOTOR_SPEED);
   set_motor_speed(&controllers[REAR_RIGHT_MOTOR], BASE_MOTOR_SPEED);
@@ -235,11 +224,13 @@ void turn_right() {
   set_motor_speed(&controllers[FRONT_LEFT_MOTOR], BASE_MOTOR_SPEED);
   set_motor_speed(&controllers[REAR_LEFT_MOTOR], BASE_MOTOR_SPEED);
   lMotorSpeed = BASE_MOTOR_SPEED;
+
+  HAL_Delay(400);
+
+  reset_motor_direction_speed();
 }
 
 void turn_left() {
-  float front = get_tof_rangedata(FL_I2C1);
-  float rear = get_tof_rangedata(RL_I2C2);
 
   set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], -1 * BASE_MOTOR_SPEED);
   set_motor_speed(&controllers[REAR_RIGHT_MOTOR], -1 * BASE_MOTOR_SPEED);
@@ -249,16 +240,6 @@ void turn_left() {
   set_motor_speed(&controllers[REAR_LEFT_MOTOR], BASE_MOTOR_SPEED);
   lMotorSpeed = BASE_MOTOR_SPEED;
 
-  front = get_tof_rangedata(FL_I2C1);
-  rear = get_tof_rangedata(RL_I2C2);
-
-  // number needs to be played around with
-  float margin = 2;
-  while ( abs(front - rear) > margin ) {
-    front = get_tof_rangedata(FL_I2C1);
-    rear = get_tof_rangedata(RL_I2C2);
-  }
-
   set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], BASE_MOTOR_SPEED);
   set_motor_speed(&controllers[REAR_RIGHT_MOTOR], BASE_MOTOR_SPEED);
   rMotorSpeed = BASE_MOTOR_SPEED;
@@ -266,6 +247,11 @@ void turn_left() {
   set_motor_speed(&controllers[FRONT_LEFT_MOTOR], BASE_MOTOR_SPEED);
   set_motor_speed(&controllers[REAR_LEFT_MOTOR], BASE_MOTOR_SPEED);
   lMotorSpeed = BASE_MOTOR_SPEED;
+
+
+  HAL_Delay(400);
+
+  reset_motor_direction_speed();
 }
 
 // get tof sensor data
@@ -294,7 +280,7 @@ void move_forward(int speed) {
 	set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_BACKWARD); // motors wired up backwards, this is forwards
 	set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_FORWARD);
 	set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_BACKWARD);
-	for (int i = 0; i < speed; i+=1) {
+	for (int i = 0; i <= speed; i+=1) {
 		set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], motor_ratio * i);
 		set_motor_speed(&controllers[FRONT_LEFT_MOTOR], i);
 		set_motor_speed(&controllers[REAR_RIGHT_MOTOR], motor_ratio * i);
@@ -303,39 +289,31 @@ void move_forward(int speed) {
 		lMotorSpeed = i;
 		HAL_Delay(25);
 	}
-//	set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], 10/3 * BASE_MOTOR_SPEED);
-//	set_motor_speed(&controllers[FRONT_LEFT_MOTOR], BASE_MOTOR_SPEED);
-//	set_motor_speed(&controllers[REAR_RIGHT_MOTOR], 10/3 * BASE_MOTOR_SPEED);
-//	set_motor_speed(&controllers[REAR_LEFT_MOTOR], BASE_MOTOR_SPEED);
-//	rMotorSpeed = BASE_MOTOR_SPEED;
-//	lMotorSpeed = BASE_MOTOR_SPEED;
-//
-//	set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_FORWARD);
-//	set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_BACKWARD); // motors wired up backwards, this is forwards
-//	set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_FORWARD);
-//	set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_BACKWARD);
 }
 
 void move_backward(int speed) {
-  set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (2) * speed);
-  set_motor_speed(&controllers[FRONT_LEFT_MOTOR], speed);
-  set_motor_speed(&controllers[REAR_RIGHT_MOTOR], speed);
-  set_motor_speed(&controllers[REAR_LEFT_MOTOR], speed);
-  rMotorSpeed = speed;
-  lMotorSpeed = speed;
-
-  set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_BACKWARD);
-  set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_FORWARD); // motors wired up backwards, this is forwards
-  set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_BACKWARD);
-  set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_FORWARD);
+	set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_BACKWARD);
+	set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_FORWARD); // motors wired up backwards, this is forwards
+	set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_BACKWARD);
+	set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_FORWARD);
+	for (int i = 0; i <= speed; i+=1) {
+		set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], motor_ratio * i);
+		set_motor_speed(&controllers[FRONT_LEFT_MOTOR], i);
+		set_motor_speed(&controllers[REAR_RIGHT_MOTOR], motor_ratio * i);
+		set_motor_speed(&controllers[REAR_LEFT_MOTOR], i);
+		rMotorSpeed = i;
+		lMotorSpeed = i;
+		stop_on_detect_object_behind();
+		HAL_Delay(25);
+	}
 }
 
 // following only to be used on test day
 void stop_on_detect_object_behind() {
   // name made under the assumption we will be using the backwards tof
-  float dist = get_tof_rangedata(RR_I2C3);
-  float margin = 10;
-  if (dist < 10) {
+  float dist = get_tof_rangedata(RR_I2C3) - RR_OFFSET;
+  float margin = 25;
+  if (dist < margin) {
     reset_motor_direction_speed();
   }
 }
@@ -412,52 +390,15 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while(1) {
-	  // Wall reading test
-//	  float front = get_tof_rangedata(FL_I2C1);
-		static VL53L0X_RangingMeasurementData_t tof_rangedata;
-		VL53L0X_PerformSingleRangingMeasurement(FL_I2C1, &tof_rangedata);
-		float front = tof_rangedata.RangeMilliMeter*MM_TO_CM;
-		VL53L0X_PerformSingleRangingMeasurement(RL_I2C2, &tof_rangedata);
-	  float rear = tof_rangedata.RangeMilliMeter*MM_TO_CM;
-	  asm("nop");
-  }
   while (1)
   {
-
-	while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
-	HAL_Delay(1000);
-	move_forward(BASE_MOTOR_SPEED);
-
-	while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1) {
-//      course_correction(&TOF_FL.RangingData, &TOF_RL.RangingData, &TOF_RR.RangingData);
-//      HAL_Delay(50);
-	}
-	reset_motor_direction_speed();
-	HAL_Delay(1000);
-
-    /* Test Day
-    // test 1: straight line speed
-    while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
-    HAL_Delay(1000);
-    // speed needs to be tweaked
-    move_forward(BASE_SPEED);
-    while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
-    reset_motor_direction_speed();
-
-    // test 2: turn angle
-    while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
-    HAL_Delay(1000);
-    turn_right();
-    reset_motor_direction_speed();
 
     // test 3: stop in front of wall
     while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
     HAL_Delay(1000);
-    move_backward();
+    move_backward(BASE_MOTOR_SPEED);
     stop_on_detect_object_behind();
-    */
-   
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
