@@ -32,8 +32,11 @@
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
-#define BASE_MOTOR_SPEED 20
+#define BASE_MOTOR_SPEED 35
 #define MM_TO_CM 0.1f
+#define RMOTOR_SCALING_FACTOR 2
+#define FL_CORRECTION 17
+#define RL_CORRECTION (17+36)
 
 /* USER CODE BEGIN PD */
 
@@ -143,14 +146,15 @@ void CourseCorrection() {
   static VL53L0X_RangingMeasurementData_t tof_rl_rangedata;
   VL53L0X_PerformSingleRangingMeasurement(DevI2C1, &tof_fl_rangedata);
   VL53L0X_PerformSingleRangingMeasurement(DevI2C2, &tof_rl_rangedata);
-  float front = tof_fl_rangedata.RangeMilliMeter*MM_TO_CM;
-  float rear = tof_rl_rangedata.RangeMilliMeter*MM_TO_CM;
-  if (front > rear) {
-    int x = (front - rear)/front;
+  float front = tof_fl_rangedata.RangeMilliMeter*MM_TO_CM - FL_CORRECTION;
+  float rear = tof_rl_rangedata.RangeMilliMeter*MM_TO_CM - RL_CORRECTION;
 
-    set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (1+x) * BASE_MOTOR_SPEED);
-    set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (1+x) * BASE_MOTOR_SPEED);
-    RIGHT_MOTOR_SPEED = (1+x) * BASE_MOTOR_SPEED;
+  if (front > rear) {
+    int x = (front - rear)/front/3;
+
+    set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (1+x) * RMOTOR_SCALING_FACTOR * BASE_MOTOR_SPEED);
+    set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (1+x) * RMOTOR_SCALING_FACTOR * BASE_MOTOR_SPEED);
+    RIGHT_MOTOR_SPEED = (1+x) * RMOTOR_SCALING_FACTOR * BASE_MOTOR_SPEED;
     
     set_motor_speed(&controllers[FRONT_LEFT_MOTOR], BASE_MOTOR_SPEED);
     set_motor_speed(&controllers[REAR_LEFT_MOTOR], BASE_MOTOR_SPEED);
@@ -158,11 +162,11 @@ void CourseCorrection() {
   }
 
   if (rear > front) {
-    int x = (rear - front)/rear;
+    int x = (rear - front)/rear/3;
 
-    set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], BASE_MOTOR_SPEED);
-    set_motor_speed(&controllers[REAR_RIGHT_MOTOR], BASE_MOTOR_SPEED);
-    RIGHT_MOTOR_SPEED = BASE_MOTOR_SPEED;
+    set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], RMOTOR_SCALING_FACTOR * BASE_MOTOR_SPEED);
+    set_motor_speed(&controllers[REAR_RIGHT_MOTOR], RMOTOR_SCALING_FACTOR * BASE_MOTOR_SPEED);
+    RIGHT_MOTOR_SPEED = RMOTOR_SCALING_FACTOR * BASE_MOTOR_SPEED;
     
     set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (1+x) * BASE_MOTOR_SPEED);
     set_motor_speed(&controllers[REAR_LEFT_MOTOR], (1+x) * BASE_MOTOR_SPEED);
@@ -268,11 +272,7 @@ int main(void)
   	// Wait for button press
     while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
     HAL_Delay(1000);
-    set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_FORWARD);
-    set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_BACKWARD); // motors wired up backwards, this is forwards
-    set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_FORWARD);
-    set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_BACKWARD);
-    
+//    move_forward(BASE_MOTOR_SPEED);
     while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1) {
       CourseCorrection(&TOF_FL.RangingData, &TOF_RL.RangingData, &TOF_RR.RangingData);
       HAL_Delay(50);
