@@ -91,6 +91,7 @@ static float motor_ratio = 2.0f;
 
 #define MOTOR_RATIO_MIN 1.0f
 #define MOTOR_RATIO_MAX 3.0f
+#define TOF_CALIBRATION_DIST 43000
 
 static char message[200];
 
@@ -164,7 +165,12 @@ void TOF_Init(VL53L0X_DEV dev, struct TOF_Calibration tof){
 	VL53L0X_StaticInit( dev );
 	VL53L0X_PerformRefCalibration(dev, &tof.VhvSettings, &tof.PhaseCal);
 	VL53L0X_PerformRefSpadManagement(dev, &tof.refSpadCount, &tof.isApertureSpads);
-	VL53L0X_SetDeviceMode(dev, VL53L0X_DEVICEMODE_SINGLE_RANGING);
+
+  // not sure about this stuff
+    int pOffsetMicroMeter;
+	//VL53L0X_PerformOffsetCalibration(dev, TOF_CALIBRATION_DIST<<16, &pOffsetMicroMeter);
+    VL53L0X_SetOffsetCalibrationDataMicroMeter(dev, TOF_CALIBRATION_DIST)
+    VL53L0X_SetDeviceMode(dev, VL53L0X_DEVICEMODE_SINGLE_RANGING);
 
 	// Enable/Disable Sigma and Signal check
 	VL53L0X_SetLimitCheckEnable(dev, VL53L0X_CHECKENABLE_SIGMA_FINAL_RANGE, 1);
@@ -208,14 +214,11 @@ void course_correction() {
 
 // steering - untested
 void turn_right() {
-//  float front = get_tof_rangedata(FL_I2C1);
-//  float rear = get_tof_rangedata(RL_I2C2);
 
 	set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_BACKWARD);
 	set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_BACKWARD);
 	set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_BACKWARD);
 	set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_BACKWARD);
-
 
   set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], BASE_MOTOR_SPEED);
   set_motor_speed(&controllers[REAR_RIGHT_MOTOR], BASE_MOTOR_SPEED);
@@ -258,7 +261,7 @@ void turn_left() {
 float get_tof_rangedata(VL53L0X_DEV dev) {
   static VL53L0X_RangingMeasurementData_t tof_rangedata;
   VL53L0X_PerformSingleRangingMeasurement(dev, &tof_rangedata);
-  return tof_rangedata.RangeMilliMeter*MM_TO_CM;
+  return tof_rangedata.RangeMilliMeter;
 }
 
 void reset_motor_direction_speed() {
@@ -390,14 +393,21 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
+  float fl = 0.0f;
+  float rl = 0.0f;
+  float rr = 0.0f;
   while (1)
   {
 
     // test 3: stop in front of wall
-    while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
     HAL_Delay(1000);
-    move_backward(BASE_MOTOR_SPEED);
-    stop_on_detect_object_behind();
+    // move_backward(BASE_MOTOR_SPEED);
+    // stop_on_detect_object_behind();
+    fl = get_tof_rangedata(FL_I2C1);
+    rl = get_tof_rangedata(RL_I2C2);
+    rr = get_tof_rangedata(RR_I2C3);
+    HAL_Delay(1000);
 
     /* USER CODE END WHILE */
 
