@@ -30,7 +30,7 @@ bool set_motor_direction(MotorController *mc, MotorDir dir) {
 
 bool set_motor_speed(MotorController *mc, uint8_t speed_percent) {
 	if(speed_percent > 100) {
-		return false;
+		speed_percent = 100;
 	}
 	// Get value to set CCR to
 	uint16_t ccr_val = (uint16_t)((float)speed_percent / PERCENT_TO_DEC * SPEED_PERCENT_TO_CCR);
