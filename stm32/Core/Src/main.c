@@ -39,7 +39,7 @@
 #define STOPPING_DISTANCE 250
 
 // Motor speeds
-#define BASE_MOTOR_SPEED 25
+#define BASE_MOTOR_SPEED 50
 #define TURNING_MOTOR_SPEED 100
 
 // Scaling factor to compensate for right motor being weaker.
@@ -419,7 +419,7 @@ int main(void)
 	while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1) {
 		course_correction();
 		detect_wall_and_turn();
-	};
+	}
 
 	stop();
 	HAL_Delay(1000);
