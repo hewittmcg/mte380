@@ -34,8 +34,7 @@
 
 /* Private define ------------------------------------------------------------*/
 #define BASE_MOTOR_SPEED 50
-#define MM_TO_CM 0.1f
-#define RR_OFFSET 4.7f
+#define TURNING_MOTOR_SPEED 100
 
 /* USER CODE BEGIN PD */
 
@@ -66,7 +65,8 @@ struct TOF_Calibration{
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+#define MIN(a,b) (((a)<(b))?(a):(b))
+#define MAX(a,b) (((a)>(b))?(a):(b))
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -85,8 +85,6 @@ TIM_HandleTypeDef htim8;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-static int rMotorSpeed;
-static int lMotorSpeed;
 static float RMOTOR_SCALING_FACTOR = 2.0f;
 
 #define MOTOR_RATIO_MIN 1.0f
@@ -167,12 +165,8 @@ void TOF_Init(VL53L0X_DEV dev, struct TOF_Calibration tof){
 	VL53L0X_StaticInit( dev );
 	VL53L0X_PerformRefCalibration(dev, &tof.VhvSettings, &tof.PhaseCal);
 	VL53L0X_PerformRefSpadManagement(dev, &tof.refSpadCount, &tof.isApertureSpads);
-
-  // not sure about this stuff
-//    int pOffsetMicroMeter;
-	//VL53L0X_PerformOffsetCalibration(dev, TOF_CALIBRATION_DIST<<16, &pOffsetMicroMeter);
-    VL53L0X_SetOffsetCalibrationDataMicroMeter(dev, TOF_CALIBRATION_DIST);
-    VL53L0X_SetDeviceMode(dev, VL53L0X_DEVICEMODE_SINGLE_RANGING);
+  VL53L0X_SetOffsetCalibrationDataMicroMeter(dev, TOF_CALIBRATION_DIST);
+  VL53L0X_SetDeviceMode(dev, VL53L0X_DEVICEMODE_SINGLE_RANGING);
 
 	// Enable/Disable Sigma and Signal check
 	VL53L0X_SetLimitCheckEnable(dev, VL53L0X_CHECKENABLE_SIGMA_FINAL_RANGE, 1);
@@ -207,14 +201,12 @@ void course_correction() {
 
 		set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (int)((1+x) * RMOTOR_SCALING_FACTOR * BASE_MOTOR_SPEED));
 		set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (int)((1+x) * RMOTOR_SCALING_FACTOR * BASE_MOTOR_SPEED));
-		rMotorSpeed = (1+x) * RMOTOR_SCALING_FACTOR * BASE_MOTOR_SPEED;
 
 //		set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (1- 1.5*x) * BASE_MOTOR_SPEED);
 //		set_motor_speed(&controllers[REAR_LEFT_MOTOR], (1- 1.5*x) * BASE_MOTOR_SPEED);
-//		lMotorSpeed = (1- 1.5*x) * BASE_MOTOR_SPEED;
+
 		set_motor_speed(&controllers[FRONT_LEFT_MOTOR], 0);
 		set_motor_speed(&controllers[REAR_LEFT_MOTOR], 0);
-		lMotorSpeed = (1- 1.5*x) * BASE_MOTOR_SPEED;
 	}
 
 	if (rear > front) {
@@ -222,34 +214,28 @@ void course_correction() {
 
 //		set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (1-x) * RMOTOR_SCALING_FACTOR * BASE_MOTOR_SPEED);
 //		set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (1-x) * RMOTOR_SCALING_FACTOR * BASE_MOTOR_SPEED);
-//		rMotorSpeed = (1-x) * RMOTOR_SCALING_FACTOR * BASE_MOTOR_SPEED;
 
 		set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], 0);
 		set_motor_speed(&controllers[REAR_RIGHT_MOTOR], 0);
-		rMotorSpeed = (1-x) * RMOTOR_SCALING_FACTOR * BASE_MOTOR_SPEED;
 
 		set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
 		set_motor_speed(&controllers[REAR_LEFT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
-		lMotorSpeed = (1+x) * BASE_MOTOR_SPEED;
 	}
 
 }
 
 // steering - untested
 void turn_right() {
-
 	set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_BACKWARD);
 	set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_BACKWARD);
 	set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_BACKWARD);
 	set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_BACKWARD);
 
-  set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], 100);
-  set_motor_speed(&controllers[REAR_RIGHT_MOTOR], 100);
-  rMotorSpeed = 100;
+  set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], BASE_MOTOR_SPEED);
+  set_motor_speed(&controllers[REAR_RIGHT_MOTOR], BASE_MOTOR_SPEED);
   
-  set_motor_speed(&controllers[FRONT_LEFT_MOTOR], 100);
-  set_motor_speed(&controllers[REAR_LEFT_MOTOR], 100);
-  lMotorSpeed = 100;
+  set_motor_speed(&controllers[FRONT_LEFT_MOTOR], BASE_MOTOR_SPEED);
+  set_motor_speed(&controllers[REAR_LEFT_MOTOR], BASE_MOTOR_SPEED);
 
   HAL_Delay(400);
 
@@ -257,23 +243,16 @@ void turn_right() {
 }
 
 void turn_left() {
-
-  set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], -1 * BASE_MOTOR_SPEED);
-  set_motor_speed(&controllers[REAR_RIGHT_MOTOR], -1 * BASE_MOTOR_SPEED);
-  rMotorSpeed = -1 *BASE_MOTOR_SPEED;
-  
-  set_motor_speed(&controllers[FRONT_LEFT_MOTOR], BASE_MOTOR_SPEED);
-  set_motor_speed(&controllers[REAR_LEFT_MOTOR], BASE_MOTOR_SPEED);
-  lMotorSpeed = BASE_MOTOR_SPEED;
+	set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_FORWARD);
+	set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_FORWARD);
+	set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_FORWARD);
+	set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_FORWARD);
 
   set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], BASE_MOTOR_SPEED);
   set_motor_speed(&controllers[REAR_RIGHT_MOTOR], BASE_MOTOR_SPEED);
-  rMotorSpeed = BASE_MOTOR_SPEED;
   
   set_motor_speed(&controllers[FRONT_LEFT_MOTOR], BASE_MOTOR_SPEED);
   set_motor_speed(&controllers[REAR_LEFT_MOTOR], BASE_MOTOR_SPEED);
-  lMotorSpeed = BASE_MOTOR_SPEED;
-
 
   HAL_Delay(400);
 
@@ -297,8 +276,6 @@ void stop() {
   set_motor_speed(&controllers[REAR_RIGHT_MOTOR], 0);
   set_motor_speed(&controllers[FRONT_LEFT_MOTOR], 0);
   set_motor_speed(&controllers[REAR_LEFT_MOTOR], 0);
-  rMotorSpeed = 0;
-  lMotorSpeed = 0;
 }
 
 void move_forward(int speed) {
@@ -311,8 +288,6 @@ void move_forward(int speed) {
 		set_motor_speed(&controllers[FRONT_LEFT_MOTOR], i);
 		set_motor_speed(&controllers[REAR_RIGHT_MOTOR], RMOTOR_SCALING_FACTOR * i);
 		set_motor_speed(&controllers[REAR_LEFT_MOTOR], i);
-		rMotorSpeed = i;
-		lMotorSpeed = i;
 		HAL_Delay(25);
 	}
 }
@@ -327,8 +302,6 @@ void move_backward(int speed) {
 		set_motor_speed(&controllers[FRONT_LEFT_MOTOR], i);
 		set_motor_speed(&controllers[REAR_RIGHT_MOTOR], RMOTOR_SCALING_FACTOR * i);
 		set_motor_speed(&controllers[REAR_LEFT_MOTOR], i);
-		rMotorSpeed = i;
-		lMotorSpeed = i;
 		detect_wall_and_turn();
 		HAL_Delay(25);
 	}
@@ -430,10 +403,6 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-
-  float fl = 0.0f;
-  float rl = 0.0f;
-  float rr = 0.0f;
   while (1)
   {
 
@@ -443,9 +412,6 @@ int main(void)
 	while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1) {
 		course_correction();
 		detect_wall_and_turn();
-
-		// TODO: we may want to remove this delay, not sure if it's necessary
-//		HAL_Delay(50);
 	};
 
 	stop();
