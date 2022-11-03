@@ -67,8 +67,9 @@ struct TOF_Calibration{
 #define RMOTOR_SCALING_FACTOR 2
 
 // Correction factors for ToF sensors
-#define FL_CORRECTION 17
-#define RL_CORRECTION (FL_CORRECTION + 36)
+// TODO: update these if needed
+#define FL_CORRECTION 0
+#define RL_CORRECTION 0
 
 /* USER CODE END PD */
 
@@ -246,8 +247,12 @@ static void course_correction(void) {
 // This is a blocking call.
 void detect_wall_and_turn(void) {
 	static VL53L0X_RangingMeasurementData_t tof_fr_rangedata;
-	VL53L0X_PerformSingleRangingMeasurement(DevI2C3, &tof_fr_rangedata);
+	VL53L0X_Error err = VL53L0X_PerformSingleRangingMeasurement(DevI2C3, &tof_fr_rangedata);
 
+	if(err) {
+		stop();
+		while(1);
+	}
 	if(tof_fr_rangedata.RangeMilliMeter*MM_TO_CM < STOPPING_DISTANCE_CM) {
 		// Execute right turn and continue
 		stop();
