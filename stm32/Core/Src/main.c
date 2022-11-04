@@ -25,6 +25,7 @@
 #include "l298n_motor_controller.h"
 #include "vl53l0x_api.h"
 #include <stdio.h>
+#include "stm32f4xx_hal_gpio.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -33,6 +34,7 @@
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
+/* USER CODE BEGIN PD */
 #define MOTOR_RATIO_MIN 1.0f
 #define MOTOR_RATIO_MAX 3.0f
 #define TOF_CALIBRATION_DIST 43000
@@ -44,8 +46,6 @@
 
 // Scaling factor to compensate for right motor being weaker.
 #define RMOTOR_SCALING_FACTOR 2
-
-/* USER CODE BEGIN PD */
 
 // Motors used in murphy.
 typedef enum {
@@ -63,6 +63,14 @@ struct TOF_Calibration{
   uint8_t PhaseCal;
   VL53L0X_RangingMeasurementData_t RangingData;
 };
+
+// Status of ToF sensors.
+typedef struct {
+	volatile int front_left_tof_ready;
+	volatile int front_right_tof_ready;
+	volatile int rear_left_tof_ready;
+} TofStatus;
+
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -77,7 +85,6 @@ struct TOF_Calibration{
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-
 FMPI2C_HandleTypeDef hfmpi2c1;
 
 I2C_HandleTypeDef hi2c1;
@@ -92,8 +99,8 @@ TIM_HandleTypeDef htim8;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-static char message[200];
 
+// TODO: move this somewhere better
 #ifdef __GNUC__
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
 #else
@@ -138,6 +145,9 @@ static MotorController controllers[NUM_MOTORS] = {
 		},
 };
 
+// Storage for status of whether ToF sensor data ready
+static TofStatus tof_status;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -154,6 +164,20 @@ static void MX_TIM8_Init(void);
 /* USER CODE BEGIN PFP */
 float get_tof_rangedata(VL53L0X_DEV dev);
 void stop();
+void detect_wall_and_turn(void);
+
+// TODO: move this somewhere else, just here for the time being
+// Handle external interrupt from ToF sensors
+void HAL_GPIO_EXTI_Callback(uint16_t gpio_pin) {
+	switch(gpio_pin) {
+	case FR_TOF_EXTI_Pin:
+		tof_status.front_right_tof_ready = 1;
+	case FL_TOF_EXTI_Pin:
+		tof_status.front_left_tof_ready = 1;
+	case RL_TOF_EXTI_Pin:
+		tof_status.rear_left_tof_ready = 1;
+	}
+}
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -165,8 +189,8 @@ void TOF_Init(VL53L0X_DEV dev, struct TOF_Calibration tof){
 	VL53L0X_StaticInit(dev);
 	VL53L0X_PerformRefCalibration(dev, &tof.VhvSettings, &tof.PhaseCal);
 	VL53L0X_PerformRefSpadManagement(dev, &tof.refSpadCount, &tof.isApertureSpads);
-  VL53L0X_SetOffsetCalibrationDataMicroMeter(dev, TOF_CALIBRATION_DIST);
-  VL53L0X_SetDeviceMode(dev, VL53L0X_DEVICEMODE_SINGLE_RANGING);
+    VL53L0X_SetOffsetCalibrationDataMicroMeter(dev, TOF_CALIBRATION_DIST);
+    VL53L0X_SetDeviceMode(dev, VL53L0X_DEVICEMODE_CONTINUOUS_RANGING);
 
 	// Enable/Disable Sigma and Signal check
 	VL53L0X_SetLimitCheckEnable(dev, VL53L0X_CHECKENABLE_SIGMA_FINAL_RANGE, 1);
@@ -176,6 +200,13 @@ void TOF_Init(VL53L0X_DEV dev, struct TOF_Calibration tof){
 	VL53L0X_SetMeasurementTimingBudgetMicroSeconds(dev, 33000);
 	VL53L0X_SetVcselPulsePeriod(dev, VL53L0X_VCSEL_PERIOD_PRE_RANGE, 18);
 	VL53L0X_SetVcselPulsePeriod(dev, VL53L0X_VCSEL_PERIOD_FINAL_RANGE, 14);
+
+	// Set up GPIO for interrupts
+	VL53L0X_SetGpioConfig(dev, 0, VL53L0X_DEVICEMODE_CONTINUOUS_RANGING,
+	        VL53L0X_REG_SYSTEM_INTERRUPT_GPIO_NEW_SAMPLE_READY,
+	        VL53L0X_INTERRUPTPOLARITY_LOW);
+	VL53L0X_ClearInterruptMask(dev, VL53L0X_REG_SYSTEM_INTERRUPT_GPIO_NEW_SAMPLE_READY);
+	VL53L0X_StartMeasurement(dev);
 }
 
 // P control loop.
@@ -183,9 +214,26 @@ void course_correction() {
 	static VL53L0X_RangingMeasurementData_t tof_fl_rangedata;
 	static VL53L0X_RangingMeasurementData_t tof_rl_rangedata;
 
+	/*
   // Currently, these measurements take around 70 ms to complete.
 	VL53L0X_Error err1 = VL53L0X_PerformSingleRangingMeasurement(FL_I2C1, &tof_fl_rangedata);
 	VL53L0X_Error err2 = VL53L0X_PerformSingleRangingMeasurement(RL_I2C2, &tof_rl_rangedata);
+	float front = tof_fl_rangedata.RangeMilliMeter;
+	float rear = tof_rl_rangedata.RangeMilliMeter;
+	*/
+
+	while(!tof_status.front_left_tof_ready || !tof_status.rear_left_tof_ready);
+
+	VL53L0X_Error err1 = VL53L0X_GetRangingMeasurementData(FL_I2C1, &tof_fl_rangedata);
+
+	VL53L0X_ClearInterruptMask(FL_I2C1, VL53L0X_REG_SYSTEM_INTERRUPT_GPIO_NEW_SAMPLE_READY);
+	tof_status.front_left_tof_ready = 0;
+
+	VL53L0X_Error err2 = VL53L0X_GetRangingMeasurementData(RL_I2C2, &tof_rl_rangedata);
+
+	VL53L0X_ClearInterruptMask(RL_I2C2, VL53L0X_REG_SYSTEM_INTERRUPT_GPIO_NEW_SAMPLE_READY);
+	tof_status.rear_left_tof_ready = 0;
+
 	float front = tof_fl_rangedata.RangeMilliMeter;
 	float rear = tof_rl_rangedata.RangeMilliMeter;
 
@@ -312,7 +360,14 @@ void move_backward(int speed) {
 // This is a blocking call.
 void detect_wall_and_turn(void) {
 	static VL53L0X_RangingMeasurementData_t tof_fr_rangedata;
-	VL53L0X_Error err = VL53L0X_PerformSingleRangingMeasurement(FR_I2C3, &tof_fr_rangedata);
+	//VL53L0X_Error err = VL53L0X_PerformSingleRangingMeasurement(FR_I2C3, &tof_fr_rangedata);
+	// Wait for interrupt to fire
+	while(!tof_status.front_right_tof_ready);
+
+	VL53L0X_Error err = VL53L0X_GetRangingMeasurementData(FR_I2C3, &tof_fr_rangedata);
+
+	err = VL53L0X_ClearInterruptMask(FR_I2C3, VL53L0X_REG_SYSTEM_INTERRUPT_GPIO_NEW_SAMPLE_READY);
+	tof_status.front_right_tof_ready = 0;
 
 	if(err) {
 		stop();
@@ -400,13 +455,31 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  // Testing the ToF sensor
+  /*
+  static VL53L0X_RangingMeasurementData_t tof_fr_rangedata;
+  uint16_t values_read[10] = { 0 };
+  HAL_Delay(500);
+  for(int i = 0; i < 10; i++) {
+	  while(!tof_status.front_right_tof_ready);
+
+	  VL53L0X_Error err = VL53L0X_GetRangingMeasurementData(FR_I2C3, &tof_fr_rangedata);
+
+	  err = VL53L0X_ClearInterruptMask(FR_I2C3, VL53L0X_REG_SYSTEM_INTERRUPT_GPIO_NEW_SAMPLE_READY);
+	  tof_status.front_right_tof_ready = 0;
+
+	  values_read[i] = tof_fr_rangedata.RangeMilliMeter;
+  }
+  while(1);
+  */
+
   while (1)
   {
 
   // Wait for button press before starting to move.
 	while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
 	
-  HAL_Delay(1000);
+    HAL_Delay(1000);
 	move_forward(BASE_MOTOR_SPEED);
 
   // Course correct and detect walls until button is pressed again.
@@ -875,6 +948,18 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : FR_TOF_EXTI_Pin */
+  GPIO_InitStruct.Pin = FR_TOF_EXTI_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(FR_TOF_EXTI_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : RL_TOF_EXTI_Pin FL_TOF_EXTI_Pin */
+  GPIO_InitStruct.Pin = RL_TOF_EXTI_Pin|FL_TOF_EXTI_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
   /*Configure GPIO pins : PB14 PB15 PB4 PB5 */
   GPIO_InitStruct.Pin = GPIO_PIN_14|GPIO_PIN_15|GPIO_PIN_4|GPIO_PIN_5;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -888,6 +973,16 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 
 }
 
