@@ -151,6 +151,13 @@ static MotorController controllers[NUM_MOTORS] = {
 		},
 };
 
+// ToF sensor device mappings
+static const VL53L0X_DEV *GET_TOF_DEV_PTR[NUM_TOFS] = {
+  [FORWARD_TOF] = &FR_I2C3,
+  [FRONT_SIDE_TOF] = &FL_I2C1,
+  [REAR_SIDE_TOF] = &RL_I2C2,
+};
+
 // Storage for status of whether ToF sensor data ready
 static TofStatus tof_status;
 
@@ -221,9 +228,9 @@ float get_tof_rangedata(VL53L0X_DEV dev) {
 
 // Read data from the given ToF sensor and set the pointer passed in to the range, returning any errors.
 // To be called when using continuous ranging with interrupts.
-VL53L0X_Error get_tof_rangedata_cts(VL53L0X_DEV dev, uint16_t *range) {
+VL53L0X_Error get_tof_rangedata_cts(TofSensor sensor, uint16_t *range) {
   VL53L0X_RangingMeasurementData_t tof_rangedata = { 0 };
-
+  VL53L0X_DEV dev = *GET_TOF_DEV_PTR[sensor];
 	VL53L0X_Error err = VL53L0X_GetRangingMeasurementData(dev, &tof_rangedata);
   if(err) {
     return err;
@@ -234,7 +241,7 @@ VL53L0X_Error get_tof_rangedata_cts(VL53L0X_DEV dev, uint16_t *range) {
     return err;
   }
 
-	tof_status.data_ready[FRONT_SIDE_TOF] = 0;
+	tof_status.data_ready[sensor] = 0;
 
   *range = tof_rangedata.RangeMilliMeter;
   return VL53L0X_ERROR_NONE;
@@ -341,8 +348,8 @@ void course_correction() {
   // Get data from the side ToF sensors
   uint16_t front = 0;
   uint16_t rear = 0;
-	VL53L0X_Error err1 = get_tof_rangedata_cts(FL_I2C1, &front); 
-	VL53L0X_Error err2 = get_tof_rangedata_cts(RL_I2C2, &rear); 
+	VL53L0X_Error err1 = get_tof_rangedata_cts(FRONT_SIDE_TOF, &front); 
+	VL53L0X_Error err2 = get_tof_rangedata_cts(REAR_SIDE_TOF, &rear); 
 
 	if(err1 != VL53L0X_ERROR_NONE || err2 != VL53L0X_ERROR_NONE) {
 	  // I2C might be disconnected, so stop to indicate we're having issues.
@@ -377,7 +384,7 @@ void course_correction() {
 void detect_wall_and_turn(void) {
 
   uint16_t range = 0;
-  VL53L0X_Error err = get_tof_rangedata_cts(FR_I2C3, &range);
+  VL53L0X_Error err = get_tof_rangedata_cts(FORWARD_TOF, &range);
 
 	if(err) {
 		stop();
