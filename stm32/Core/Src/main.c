@@ -38,14 +38,15 @@
 #define MOTOR_RATIO_MIN 1.0f
 #define MOTOR_RATIO_MAX 3.0f
 #define TOF_CALIBRATION_DIST 43000
-#define STOPPING_DISTANCE 250
+#define STOPPING_DISTANCE_INITIAL 350
+#define STOPPING_DISTANCE_INCREMENT 300
 
 // Motor speeds
 #define BASE_MOTOR_SPEED 50
 #define TURNING_MOTOR_SPEED 100
 
 // Scaling factor to compensate for right motor being weaker.
-#define RMOTOR_SCALING_FACTOR 2
+#define RMOTOR_SCALING_FACTOR 1
 
 // Motors used in murphy.
 typedef enum {
@@ -175,6 +176,12 @@ static const VL53L0X_DEV *GET_TOF_DEV_PTR[NUM_TOFS] = {
 // Storage for status of whether ToF sensor data ready
 static TofStatus tof_status;
 
+// Distance to stop at
+static uint16_t stop_dist_mm = STOPPING_DISTANCE_INITIAL;
+
+// Initial starting position is technically after we would have made a right turn.
+static uint8_t num_right_turns = 1;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -295,7 +302,7 @@ void turn_right() {
   set_motor_speed(&controllers[FRONT_LEFT_MOTOR], TURNING_MOTOR_SPEED);
   set_motor_speed(&controllers[REAR_LEFT_MOTOR], TURNING_MOTOR_SPEED);
 
-  HAL_Delay(400);
+  HAL_Delay(450);
 
   stop();
 }
@@ -380,20 +387,26 @@ void course_correction() {
 	}
 
 	if (front > rear) {
-		float x = (float)(front - rear)/(float)front;
+		float x = (float)(front - rear)/(float)front * 10;
+		if(1 - x < 0) {
+			x = 1;
+		}
 
-		set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (int)((1+x) * RMOTOR_SCALING_FACTOR * BASE_MOTOR_SPEED));
-		set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (int)((1+x) * RMOTOR_SCALING_FACTOR * BASE_MOTOR_SPEED));
+		set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
+		set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (int)((1+x)* BASE_MOTOR_SPEED));
 
-		set_motor_speed(&controllers[FRONT_LEFT_MOTOR], 0);
-		set_motor_speed(&controllers[REAR_LEFT_MOTOR], 0);
+		set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (int)((1-x) * BASE_MOTOR_SPEED));
+		set_motor_speed(&controllers[REAR_LEFT_MOTOR], (int)((1-x) * BASE_MOTOR_SPEED));
 	}
 
 	if (rear > front) {
-		float x = (float)(rear - front)/(float)rear;
+		float x = (float)(rear - front)/(float)rear * 10;
+		if(1 - x < 0) {
+			x = 1;
+		}
 
-		set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], 0);
-		set_motor_speed(&controllers[REAR_RIGHT_MOTOR], 0);
+		set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (int)((1-x) * BASE_MOTOR_SPEED));
+		set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (int)((1-x)* BASE_MOTOR_SPEED));
 
 		set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
 		set_motor_speed(&controllers[REAR_LEFT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
@@ -413,15 +426,19 @@ void detect_wall_and_turn(void) {
 		while(1);
 	}
 
-	if(range < STOPPING_DISTANCE) {
+	if(range < stop_dist_mm) {
 		// Execute right turn and continue
 		stop();
 
-		HAL_Delay(25);
+		HAL_Delay(1000);
 
 		turn_right();
-
-		HAL_Delay(250);
+		num_right_turns++;
+		// Increment stopping distance every 4 right turns
+		if(num_right_turns % 4 == 0) {
+			stop_dist_mm += STOPPING_DISTANCE_INCREMENT;
+		}
+		HAL_Delay(1000);
 
 		move_forward(BASE_MOTOR_SPEED);
 	}
