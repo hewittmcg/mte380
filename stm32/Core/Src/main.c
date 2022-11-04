@@ -88,6 +88,20 @@ typedef struct {
 /* USER CODE BEGIN PM */
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
+
+// Indicates the start of a critical section. Disables interrupts and returns whether interrupts were previously enabled.
+static bool critical_section_start(void) {
+  bool enabled = (__get_PRIMASK() == 0);
+  __disable_irq();
+  return enabled;
+}
+
+// Indicates the end of a critical section. Enables interrupts only if they were enabled prior to the start of the critical section.
+static void critical_section_end(bool enabled) {
+  if(enabled) {
+    __enable_irq();
+  }
+}
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -176,7 +190,7 @@ static void MX_TIM1_Init(void);
 static void MX_TIM8_Init(void);
 /* USER CODE BEGIN PFP */
 
-// TODO: move this somewhere else, just here for the time being
+// TODO: move this out of main
 // Handle external interrupt from ToF sensors
 void HAL_GPIO_EXTI_Callback(uint16_t gpio_pin) {
 	switch(gpio_pin) {
@@ -199,8 +213,8 @@ void TOF_Init(VL53L0X_DEV dev, struct TOF_Calibration tof){
 	VL53L0X_StaticInit(dev);
 	VL53L0X_PerformRefCalibration(dev, &tof.VhvSettings, &tof.PhaseCal);
 	VL53L0X_PerformRefSpadManagement(dev, &tof.refSpadCount, &tof.isApertureSpads);
-  VL53L0X_SetOffsetCalibrationDataMicroMeter(dev, TOF_CALIBRATION_DIST);
-  VL53L0X_SetDeviceMode(dev, VL53L0X_DEVICEMODE_CONTINUOUS_RANGING);
+	VL53L0X_SetOffsetCalibrationDataMicroMeter(dev, TOF_CALIBRATION_DIST);
+	VL53L0X_SetDeviceMode(dev, VL53L0X_DEVICEMODE_CONTINUOUS_RANGING);
 
 	// Enable/Disable Sigma and Signal check
 	VL53L0X_SetLimitCheckEnable(dev, VL53L0X_CHECKENABLE_SIGMA_FINAL_RANGE, 1);
@@ -236,12 +250,20 @@ VL53L0X_Error get_tof_rangedata_cts(TofSensor sensor, uint16_t *range) {
     return err;
   }
 
+  // Needs to be a critical section to avoid an edge case where the interrupt mask is cleared and the interrupt fires
+  // before tof_status.data_ready[sensor] is set to 0, meaning that it will get set to 0 and never back to 1.
+  bool enabled = critical_section_start();
 	err = VL53L0X_ClearInterruptMask(dev, VL53L0X_REG_SYSTEM_INTERRUPT_GPIO_NEW_SAMPLE_READY);
+
   if(err) {
+    // This should likely be a hard fault condition, as the data ready state is now unclear.
+    critical_section_end(enabled);
     return err;
   }
 
 	tof_status.data_ready[sensor] = 0;
+
+  critical_section_end(enabled);
 
   *range = tof_rangedata.RangeMilliMeter;
   return VL53L0X_ERROR_NONE;
