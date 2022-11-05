@@ -23,6 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "l298n_motor_controller.h"
+#include "movement.h"
 #include "vl53l0x_api.h"
 #include <stdio.h>
 /* USER CODE END Includes */
@@ -48,13 +49,13 @@
 /* USER CODE BEGIN PD */
 
 // Motors used in murphy.
-typedef enum {
-	FRONT_LEFT_MOTOR = 0,
-	FRONT_RIGHT_MOTOR,
-	REAR_LEFT_MOTOR,
-	REAR_RIGHT_MOTOR,
-	NUM_MOTORS,
-} Motor;
+//typedef enum {
+//	FRONT_LEFT_MOTOR = 0,
+//	FRONT_RIGHT_MOTOR,
+//	REAR_LEFT_MOTOR,
+//	REAR_RIGHT_MOTOR,
+//	NUM_MOTORS,
+//} Motor;
 
 struct TOF_Calibration{
   uint32_t refSpadCount;
@@ -153,7 +154,6 @@ static void MX_TIM1_Init(void);
 static void MX_TIM8_Init(void);
 /* USER CODE BEGIN PFP */
 float get_tof_rangedata(VL53L0X_DEV dev);
-void stop();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -165,8 +165,8 @@ void TOF_Init(VL53L0X_DEV dev, struct TOF_Calibration tof){
 	VL53L0X_StaticInit(dev);
 	VL53L0X_PerformRefCalibration(dev, &tof.VhvSettings, &tof.PhaseCal);
 	VL53L0X_PerformRefSpadManagement(dev, &tof.refSpadCount, &tof.isApertureSpads);
-  VL53L0X_SetOffsetCalibrationDataMicroMeter(dev, TOF_CALIBRATION_DIST);
-  VL53L0X_SetDeviceMode(dev, VL53L0X_DEVICEMODE_SINGLE_RANGING);
+    VL53L0X_SetOffsetCalibrationDataMicroMeter(dev, TOF_CALIBRATION_DIST);
+    VL53L0X_SetDeviceMode(dev, VL53L0X_DEVICEMODE_SINGLE_RANGING);
 
 	// Enable/Disable Sigma and Signal check
 	VL53L0X_SetLimitCheckEnable(dev, VL53L0X_CHECKENABLE_SIGMA_FINAL_RANGE, 1);
@@ -217,95 +217,11 @@ void course_correction() {
 
 }
 
-// Turn 90 degrees to the right.
-void turn_right() {
-	set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_BACKWARD);
-	set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_BACKWARD);
-	set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_BACKWARD);
-	set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_BACKWARD);
-
-  set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], TURNING_MOTOR_SPEED);
-  set_motor_speed(&controllers[REAR_RIGHT_MOTOR], TURNING_MOTOR_SPEED);
-  
-  set_motor_speed(&controllers[FRONT_LEFT_MOTOR], TURNING_MOTOR_SPEED);
-  set_motor_speed(&controllers[REAR_LEFT_MOTOR], TURNING_MOTOR_SPEED);
-
-  HAL_Delay(400);
-
-  stop();
-}
-
-// Turn 90 degrees to the left.
-void turn_left() {
-	set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_FORWARD);
-	set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_FORWARD);
-	set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_FORWARD);
-	set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_FORWARD);
-
-  set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], TURNING_MOTOR_SPEED);
-  set_motor_speed(&controllers[REAR_RIGHT_MOTOR], TURNING_MOTOR_SPEED);
-  
-  set_motor_speed(&controllers[FRONT_LEFT_MOTOR], TURNING_MOTOR_SPEED);
-  set_motor_speed(&controllers[REAR_LEFT_MOTOR], TURNING_MOTOR_SPEED);
-
-  HAL_Delay(400);
-
-  stop();
-}
-
 // Read data from the given ToF sensor and return the range.
 float get_tof_rangedata(VL53L0X_DEV dev) {
   static VL53L0X_RangingMeasurementData_t tof_rangedata;
   VL53L0X_PerformSingleRangingMeasurement(dev, &tof_rangedata);
   return tof_rangedata.RangeMilliMeter;
-}
-
-// Stop robot movement.
-void stop() {
-  set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_OFF);
-  set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_OFF);
-  set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_OFF);
-  set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_OFF);
-
-  set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], 0);
-  set_motor_speed(&controllers[REAR_RIGHT_MOTOR], 0);
-  set_motor_speed(&controllers[FRONT_LEFT_MOTOR], 0);
-  set_motor_speed(&controllers[REAR_LEFT_MOTOR], 0);
-}
-
-void move_forward(int speed) {
-  // The left motors are wired up backwards.
-	set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_FORWARD);
-	set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_BACKWARD);
-	set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_FORWARD);
-	set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_BACKWARD);
-
-  // Slowly increase speed.
-	for (int i = 0; i <= speed; i+=1) {
-		set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], RMOTOR_SCALING_FACTOR * i);
-		set_motor_speed(&controllers[FRONT_LEFT_MOTOR], i);
-		set_motor_speed(&controllers[REAR_RIGHT_MOTOR], RMOTOR_SCALING_FACTOR * i);
-		set_motor_speed(&controllers[REAR_LEFT_MOTOR], i);
-		HAL_Delay(25);
-	}
-}
-
-void move_backward(int speed) {
-  // The left motors are wired up backwards.
-	set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_BACKWARD);
-	set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_FORWARD);
-	set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_BACKWARD);
-	set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_FORWARD);
-
-  // Slowly increase speed.
-	for (int i = 0; i <= speed; i+=1) {
-		set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], RMOTOR_SCALING_FACTOR * i);
-		set_motor_speed(&controllers[FRONT_LEFT_MOTOR], i);
-		set_motor_speed(&controllers[REAR_RIGHT_MOTOR], RMOTOR_SCALING_FACTOR * i);
-		set_motor_speed(&controllers[REAR_LEFT_MOTOR], i);
-		detect_wall_and_turn();
-		HAL_Delay(25);
-	}
 }
 
 // Check if the forward-facing ToF sensor detects a wall and turn 90 degrees to the right if so.
@@ -342,9 +258,9 @@ void detect_wall_and_turn(void) {
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	struct TOF_Calibration TOF_FL;
-	struct TOF_Calibration TOF_RL;
-	struct TOF_Calibration TOF_RR;
+  struct TOF_Calibration TOF_FL;
+  struct TOF_Calibration TOF_RL;
+  struct TOF_Calibration TOF_RR;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -396,6 +312,7 @@ int main(void)
   set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_OFF);
   set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_OFF);
 
+  movement_init(&controllers, TURNING_MOTOR_SPEED, BASE_MOTOR_SPEED);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -406,7 +323,7 @@ int main(void)
   // Wait for button press before starting to move.
 	while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
 	
-  HAL_Delay(1000);
+	HAL_Delay(1000);
 	move_forward(BASE_MOTOR_SPEED);
 
   // Course correct and detect walls until button is pressed again.
