@@ -1,5 +1,6 @@
 #include "l298n_motor_controller.h"
 #include <stdio.h>
+#include "stm32f4xx_hal_gpio.h"
 
 // Motors used in murphy.
 typedef enum {
@@ -24,3 +25,6 @@ void turn_right();
 
 // turn left 
 void turn_left();
+
+// stop vehicle
+void stop();

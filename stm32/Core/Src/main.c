@@ -24,6 +24,7 @@
 /* USER CODE BEGIN Includes */
 #include "l298n_motor_controller.h"
 #include "movement.h"
+#include "position.h"
 #include "vl53l0x_api.h"
 #include <stdio.h>
 #include "stm32f4xx_hal_gpio.h"
@@ -38,8 +39,6 @@
 /* USER CODE BEGIN PD */
 #define MOTOR_RATIO_MIN 1.0f
 #define MOTOR_RATIO_MAX 3.0f
-#define TOF_CALIBRATION_DIST 43000
-#define STOPPING_DISTANCE 250
 
 // Motor speeds
 #define BASE_MOTOR_SPEED 50
@@ -49,34 +48,6 @@
 #define RMOTOR_SCALING_FACTOR 2
 
 // Motors used in murphy.
-//typedef enum {
-//	FRONT_LEFT_MOTOR = 0,
-//	FRONT_RIGHT_MOTOR,
-//	REAR_LEFT_MOTOR,
-//	REAR_RIGHT_MOTOR,
-//	NUM_MOTORS,
-//} Motor;
-
-// ToF sensor locations.
-typedef enum {
-  FORWARD_TOF = 0,
-  FRONT_SIDE_TOF,
-  REAR_SIDE_TOF,
-  NUM_TOFS,
-} TofSensor;
-
-struct TOF_Calibration{
-  uint32_t refSpadCount;
-  uint8_t isApertureSpads;
-  uint8_t VhvSettings;
-  uint8_t PhaseCal;
-  VL53L0X_RangingMeasurementData_t RangingData;
-};
-
-// Status of ToF sensors.
-typedef struct {
-	volatile int data_ready[NUM_TOFS]; // Set by ISR handling EXTI from ToF sensor
-} TofStatus;
 
 /* USER CODE END PTD */
 
@@ -87,22 +58,7 @@ typedef struct {
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-#define MIN(a,b) (((a)<(b))?(a):(b))
-#define MAX(a,b) (((a)>(b))?(a):(b))
 
-// Indicates the start of a critical section. Disables interrupts and returns whether interrupts were previously enabled.
-static bool critical_section_start(void) {
-  bool enabled = (__get_PRIMASK() == 0);
-  __disable_irq();
-  return enabled;
-}
-
-// Indicates the end of a critical section. Enables interrupts only if they were enabled prior to the start of the critical section.
-static void critical_section_end(bool enabled) {
-  if(enabled) {
-    __enable_irq();
-  }
-}
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -139,42 +95,39 @@ VL53L0X_Dev_t  vl53l0x_1; // front left
 VL53L0X_DEV    FL_I2C1 = &vl53l0x_1;
 VL53L0X_Dev_t  vl53l0x_2; // rear left
 VL53L0X_DEV    RL_I2C2 = &vl53l0x_2;
-VL53L0X_Dev_t  vl53l0x_3; // rear right
-VL53L0X_DEV    FR_I2C3 = &vl53l0x_3;
+VL53L0X_Dev_t  vl53l0x_3; // front facing
+VL53L0X_DEV    F_I2C3 = &vl53l0x_3;
 
 // Motor controller pin mappings
 static MotorController controllers[NUM_MOTORS] = {
-		[FRONT_LEFT_MOTOR] = {
-			.in1_pin = {GPIO_PIN_14, GPIOB},
-			.in2_pin = {GPIO_PIN_15, GPIOB},
-			.en_pin = {&htim1, TIM_CHANNEL_2, &TIM1->CCR2},
-		},
-		[FRONT_RIGHT_MOTOR] = {
-			.in1_pin = {GPIO_PIN_11, GPIOC},
-			.in2_pin = {GPIO_PIN_10, GPIOC},
-			.en_pin = {&htim1, TIM_CHANNEL_3, &TIM1->CCR3},
-		},
-		[REAR_LEFT_MOTOR] = {
-			.in1_pin = {GPIO_PIN_15, GPIOA},
-			.in2_pin = {GPIO_PIN_1, GPIOA},
-			.en_pin = {&htim1, TIM_CHANNEL_4, &TIM1->CCR4},
-		},
-		[REAR_RIGHT_MOTOR] = {
-			.in1_pin = {GPIO_PIN_4, GPIOB},
-			.in2_pin = {GPIO_PIN_5, GPIOB},
-			.en_pin = {&htim8, TIM_CHANNEL_3, &TIM8->CCR3},
-		},
+	[FRONT_LEFT_MOTOR] = {
+		.in1_pin = {GPIO_PIN_14, GPIOB},
+		.in2_pin = {GPIO_PIN_15, GPIOB},
+		.en_pin = {&htim1, TIM_CHANNEL_2, &TIM1->CCR2},
+	},
+	[FRONT_RIGHT_MOTOR] = {
+		.in1_pin = {GPIO_PIN_11, GPIOC},
+		.in2_pin = {GPIO_PIN_10, GPIOC},
+		.en_pin = {&htim1, TIM_CHANNEL_3, &TIM1->CCR3},
+	},
+	[REAR_LEFT_MOTOR] = {
+		.in1_pin = {GPIO_PIN_15, GPIOA},
+		.in2_pin = {GPIO_PIN_1, GPIOA},
+		.en_pin = {&htim1, TIM_CHANNEL_4, &TIM1->CCR4},
+	},
+	[REAR_RIGHT_MOTOR] = {
+		.in1_pin = {GPIO_PIN_4, GPIOB},
+		.in2_pin = {GPIO_PIN_5, GPIOB},
+		.en_pin = {&htim8, TIM_CHANNEL_3, &TIM8->CCR3},
+	},
 };
 
 // ToF sensor device mappings
 static const VL53L0X_DEV *GET_TOF_DEV_PTR[NUM_TOFS] = {
-  [FORWARD_TOF] = &FR_I2C3,
-  [FRONT_SIDE_TOF] = &FL_I2C1,
-  [REAR_SIDE_TOF] = &RL_I2C2,
+	[FORWARD_TOF] = &F_I2C3,
+	[FRONT_SIDE_TOF] = &FL_I2C1,
+	[REAR_SIDE_TOF] = &RL_I2C2,
 };
-
-// Storage for status of whether ToF sensor data ready
-static TofStatus tof_status;
 
 /* USER CODE END PV */
 
@@ -190,132 +143,11 @@ static void MX_SPI2_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_TIM8_Init(void);
 /* USER CODE BEGIN PFP */
-float get_tof_rangedata(VL53L0X_DEV dev);
 
-// TODO: move this out of main
-// Handle external interrupt from ToF sensors
-void HAL_GPIO_EXTI_Callback(uint16_t gpio_pin) {
-	switch(gpio_pin) {
-	case FR_TOF_EXTI_Pin:
-		tof_status.data_ready[FORWARD_TOF] = 1;
-	case FL_TOF_EXTI_Pin:
-		tof_status.data_ready[FRONT_SIDE_TOF] = 1;
-	case RL_TOF_EXTI_Pin:
-		tof_status.data_ready[REAR_SIDE_TOF] = 1;
-	}
-}
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void TOF_Init(VL53L0X_DEV dev, struct TOF_Calibration tof){
-	// VL53L0X init for Single Measurement
-	VL53L0X_WaitDeviceBooted(dev);
-	VL53L0X_DataInit(dev);
-	VL53L0X_StaticInit(dev);
-	VL53L0X_PerformRefCalibration(dev, &tof.VhvSettings, &tof.PhaseCal);
-	VL53L0X_PerformRefSpadManagement(dev, &tof.refSpadCount, &tof.isApertureSpads);
-	VL53L0X_SetOffsetCalibrationDataMicroMeter(dev, TOF_CALIBRATION_DIST);
-	VL53L0X_SetDeviceMode(dev, VL53L0X_DEVICEMODE_CONTINUOUS_RANGING);
-
-	// Enable/Disable Sigma and Signal check
-	VL53L0X_SetLimitCheckEnable(dev, VL53L0X_CHECKENABLE_SIGMA_FINAL_RANGE, 1);
-	VL53L0X_SetLimitCheckEnable(dev, VL53L0X_CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, 1);
-	VL53L0X_SetLimitCheckValue(dev, VL53L0X_CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, (FixPoint1616_t)(0.1*65536));
-	VL53L0X_SetLimitCheckValue(dev, VL53L0X_CHECKENABLE_SIGMA_FINAL_RANGE, (FixPoint1616_t)(60*65536));
-	VL53L0X_SetMeasurementTimingBudgetMicroSeconds(dev, 33000);
-	VL53L0X_SetVcselPulsePeriod(dev, VL53L0X_VCSEL_PERIOD_PRE_RANGE, 18);
-	VL53L0X_SetVcselPulsePeriod(dev, VL53L0X_VCSEL_PERIOD_FINAL_RANGE, 14);
-
-	// Set up GPIO for interrupts
-	VL53L0X_SetGpioConfig(dev, 0, VL53L0X_DEVICEMODE_CONTINUOUS_RANGING,
-	        VL53L0X_REG_SYSTEM_INTERRUPT_GPIO_NEW_SAMPLE_READY,
-	        VL53L0X_INTERRUPTPOLARITY_LOW);
-	VL53L0X_StartMeasurement(dev);
-	VL53L0X_ClearInterruptMask(dev, VL53L0X_REG_SYSTEM_INTERRUPT_GPIO_NEW_SAMPLE_READY);
-}
-
-// Read data from the given ToF sensor and return the range.
-float get_tof_rangedata(VL53L0X_DEV dev) {
-  VL53L0X_RangingMeasurementData_t tof_rangedata = { 0 };
-  VL53L0X_PerformSingleRangingMeasurement(dev, &tof_rangedata);
-  return tof_rangedata.RangeMilliMeter;
-}
-
-// Read data from the given ToF sensor and set the pointer passed in to the range, returning any errors.
-// To be called when using continuous ranging with interrupts.
-VL53L0X_Error get_tof_rangedata_cts(TofSensor sensor, uint16_t *range) {
-  VL53L0X_RangingMeasurementData_t tof_rangedata = { 0 };
-  VL53L0X_DEV dev = *GET_TOF_DEV_PTR[sensor];
-	VL53L0X_Error err = VL53L0X_GetRangingMeasurementData(dev, &tof_rangedata);
-  if(err) {
-    return err;
-  }
-
-  // Needs to be a critical section to avoid an edge case where the interrupt mask is cleared and the interrupt fires
-  // before tof_status.data_ready[sensor] is set to 0, meaning that it will get set to 0 and never back to 1.
-  bool enabled = critical_section_start();
-	err = VL53L0X_ClearInterruptMask(dev, VL53L0X_REG_SYSTEM_INTERRUPT_GPIO_NEW_SAMPLE_READY);
-
-  if(err) {
-    // This should likely be a hard fault condition, as the data ready state is now unclear.
-    critical_section_end(enabled);
-    return err;
-  }
-
-	tof_status.data_ready[sensor] = 0;
-
-  critical_section_end(enabled);
-
-  *range = tof_rangedata.RangeMilliMeter;
-  return VL53L0X_ERROR_NONE;
-}
-
-// Stop robot movement.
-void stop() {
-  set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_OFF);
-  set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_OFF);
-  set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_OFF);
-  set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_OFF);
-
-  set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], 0);
-  set_motor_speed(&controllers[REAR_RIGHT_MOTOR], 0);
-  set_motor_speed(&controllers[FRONT_LEFT_MOTOR], 0);
-  set_motor_speed(&controllers[REAR_LEFT_MOTOR], 0);
-}
-
-// Read data from the given ToF sensor and return the range.
-float get_tof_rangedata(VL53L0X_DEV dev) {
-  static VL53L0X_RangingMeasurementData_t tof_rangedata;
-  VL53L0X_PerformSingleRangingMeasurement(dev, &tof_rangedata);
-  return tof_rangedata.RangeMilliMeter;
-}
-
-// Check if the forward-facing ToF sensor detects a wall and turn 90 degrees to the right if so.
-// This is a blocking call.
-void detect_wall_and_turn(void) {
-
-  uint16_t range = 0;
-  VL53L0X_Error err = get_tof_rangedata_cts(FORWARD_TOF, &range);
-
-	if(err) {
-		stop();
-		while(1);
-	}
-
-	if(range < STOPPING_DISTANCE) {
-		// Execute right turn and continue
-		stop();
-
-		HAL_Delay(25);
-
-		turn_right();
-
-		HAL_Delay(250);
-
-		move_forward(BASE_MOTOR_SPEED);
-	}
-}
 
 /* USER CODE END 0 */
 
@@ -325,96 +157,118 @@ void detect_wall_and_turn(void) {
   */
 int main(void)
 {
-  /* USER CODE BEGIN 1 */
-  struct TOF_Calibration TOF_FL;
-  struct TOF_Calibration TOF_RL;
-  struct TOF_Calibration TOF_RR;
-  /* USER CODE END 1 */
+	/* USER CODE BEGIN 1 */
+	struct TOF_Calibration TOF_F = {};
+	struct TOF_Calibration TOF_FL = {};
+	struct TOF_Calibration TOF_RL = {};
+	static TOF_Calibration TOFs[NUM_TOFS] = {
+		[FORWARD_TOF] = {
+			.refSpadCount = 0,
+			.isApertureSpads = 0,
+			.VhvSettings = 0,
+			.PhaseCal = 0,
+			.RangingData = {},
+		},
+		[FRONT_SIDE_TOF] = {
+				.refSpadCount = 0,
+				.isApertureSpads = 0,
+				.VhvSettings = 0,
+				.PhaseCal = 0,
+				.RangingData = {},
+			},
+		[REAR_SIDE_TOF] = {
+				.refSpadCount = 0,
+				.isApertureSpads = 0,
+				.VhvSettings = 0,
+				.PhaseCal = 0,
+				.RangingData = {},
+			},
+	};
 
-  /* MCU Configuration--------------------------------------------------------*/
+	/* USER CODE END 1 */
 
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
+	/* MCU Configuration--------------------------------------------------------*/
 
-  /* USER CODE BEGIN Init */
+	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+	HAL_Init();
 
-  /* USER CODE END Init */
+	/* USER CODE BEGIN Init */
 
-  /* Configure the system clock */
-  SystemClock_Config();
+	/* USER CODE END Init */
 
-  /* USER CODE BEGIN SysInit */
+	/* Configure the system clock */
+	SystemClock_Config();
 
-  /* USER CODE END SysInit */
+	/* USER CODE BEGIN SysInit */
 
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_USART2_UART_Init();
-  MX_FMPI2C1_Init();
-  MX_I2C1_Init();
-  MX_I2C2_Init();
-  MX_I2C3_Init();
-  MX_SPI2_Init();
-  MX_TIM1_Init();
-  MX_TIM8_Init();
-  /* USER CODE BEGIN 2 */
+	/* USER CODE END SysInit */
 
-  FL_I2C1->I2cHandle = &hi2c1;
-  FL_I2C1->I2cDevAddr = 0x52;
-  RL_I2C2->I2cHandle = &hi2c2;
-  RL_I2C2->I2cDevAddr = 0x52;
-  FR_I2C3->I2cHandle = &hi2c3;
-  FR_I2C3->I2cDevAddr = 0x52;
+	/* Initialize all configured peripherals */
+	MX_GPIO_Init();
+	MX_USART2_UART_Init();
+	MX_FMPI2C1_Init();
+	MX_I2C1_Init();
+	MX_I2C2_Init();
+	MX_I2C3_Init();
+	MX_SPI2_Init();
+	MX_TIM1_Init();
+	MX_TIM8_Init();
+	/* USER CODE BEGIN 2 */
 
-  TOF_Init(FL_I2C1, TOF_FL);
-  TOF_Init(RL_I2C2, TOF_RL);
-  TOF_Init(FR_I2C3, TOF_RR);
+	FL_I2C1->I2cHandle = &hi2c1;
+	FL_I2C1->I2cDevAddr = 0x52;
+	RL_I2C2->I2cHandle = &hi2c2;
+	RL_I2C2->I2cDevAddr = 0x52;
+	F_I2C3->I2cHandle = &hi2c3;
+	F_I2C3->I2cDevAddr = 0x52;
 
-  motor_init(&controllers[FRONT_LEFT_MOTOR]);
-  motor_init(&controllers[FRONT_RIGHT_MOTOR]);
-  motor_init(&controllers[REAR_LEFT_MOTOR]);
-  motor_init(&controllers[REAR_RIGHT_MOTOR]);
+	TOF_Init(&GET_TOF_DEV_PTR, &TOFs, BASE_MOTOR_SPEED);
 
-  set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_OFF);
-  set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_OFF);
-  set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_OFF);
-  set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_OFF);
+	motor_init(&controllers[FRONT_LEFT_MOTOR]);
+	motor_init(&controllers[FRONT_RIGHT_MOTOR]);
+	motor_init(&controllers[REAR_LEFT_MOTOR]);
+	motor_init(&controllers[REAR_RIGHT_MOTOR]);
 
-  movement_init(&controllers, TURNING_MOTOR_SPEED, BASE_MOTOR_SPEED);
-  /* USER CODE END 2 */
+	set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_OFF);
+	set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_OFF);
+	set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_OFF);
+	set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_OFF);
 
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
-  while (1)
-  {
+	movement_init(&controllers, TURNING_MOTOR_SPEED, BASE_MOTOR_SPEED);
+	/* USER CODE END 2 */
 
-  // Wait for button press before starting to move.
-	while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
-	
-	HAL_Delay(1000);
-	move_forward(BASE_MOTOR_SPEED);
+	/* Infinite loop */
+	/* USER CODE BEGIN WHILE */
+	while (1)
+	{
 
-  // Main loop: correct and detect walls until button is pressed again.
-	while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1) {
-    // Check for side ToF reading.
-    if(tof_status.data_ready[FRONT_SIDE_TOF] && tof_status.data_ready[REAR_SIDE_TOF]) {
-		  course_correction();
-    }
-    
-    // Check for forward ToF reading.
-    if(tof_status.data_ready[FORWARD_TOF]) {
-      detect_wall_and_turn();
-    }
+		// Wait for button press before starting to move.
+		while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
+
+		HAL_Delay(1000);
+		move_forward(BASE_MOTOR_SPEED);
+
+		// Main loop: correct and detect walls until button is pressed again.
+		while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1) {
+			// Check for side ToF reading.
+			if(getTofStatus(FRONT_SIDE_TOF) && getTofStatus(REAR_SIDE_TOF)) {
+				course_correction(controllers);
+			}
+
+			// Check for forward ToF reading.
+			if(getTofStatus(FORWARD_TOF)) {
+				detect_wall_and_turn();
+			}
+		}
+
+		stop();
+		HAL_Delay(1000);
+
+	/* USER CODE END WHILE */
+
+	/* USER CODE BEGIN 3 */
 	}
-
-	stop();
-	HAL_Delay(1000);
-
-    /* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
-  }
-  /* USER CODE END 3 */
+	/* USER CODE END 3 */
 }
 
 /**
