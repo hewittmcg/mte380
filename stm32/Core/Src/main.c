@@ -90,14 +90,6 @@ PUTCHAR_PROTOTYPE
   return ch;
 }
 
-// ToF sensor comms
-VL53L0X_Dev_t  vl53l0x_1; // front left
-VL53L0X_DEV    FL_I2C1 = &vl53l0x_1;
-VL53L0X_Dev_t  vl53l0x_2; // rear left
-VL53L0X_DEV    RL_I2C2 = &vl53l0x_2;
-VL53L0X_Dev_t  vl53l0x_3; // front facing
-VL53L0X_DEV    F_I2C3 = &vl53l0x_3;
-
 // Motor controller pin mappings
 static MotorController controllers[NUM_MOTORS] = {
 	[FRONT_LEFT_MOTOR] = {
@@ -122,12 +114,6 @@ static MotorController controllers[NUM_MOTORS] = {
 	},
 };
 
-// ToF sensor device mappings
-static const VL53L0X_DEV *GET_TOF_DEV_PTR[NUM_TOFS] = {
-	[FORWARD_TOF] = &F_I2C3,
-	[FRONT_SIDE_TOF] = &FL_I2C1,
-	[REAR_SIDE_TOF] = &RL_I2C2,
-};
 
 /* USER CODE END PV */
 
@@ -148,44 +134,6 @@ static void MX_TIM8_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-// Handle external interrupt from ToF sensors
-void HAL_GPIO_EXTI_Callback(uint16_t gpio_pin) {
-	switch(gpio_pin) {
-	case FR_TOF_EXTI_Pin:
-		setTofStatus(FORWARD_TOF, 1);
-	case FL_TOF_EXTI_Pin:
-		setTofStatus(FRONT_SIDE_TOF, 1);
-	case RL_TOF_EXTI_Pin:
-		setTofStatus(REAR_SIDE_TOF, 1);
-	}
-}
-
-void TOF_Init(VL53L0X_DEV dev, struct TOF_Calibration tof){
-	// VL53L0X init for Single Measurement
-	VL53L0X_WaitDeviceBooted(dev);
-	VL53L0X_DataInit(dev);
-	VL53L0X_StaticInit(dev);
-	VL53L0X_PerformRefCalibration(dev, &tof.VhvSettings, &tof.PhaseCal);
-	VL53L0X_PerformRefSpadManagement(dev, &tof.refSpadCount, &tof.isApertureSpads);
-	VL53L0X_SetOffsetCalibrationDataMicroMeter(dev, TOF_CALIBRATION_DIST);
-	VL53L0X_SetDeviceMode(dev, VL53L0X_DEVICEMODE_CONTINUOUS_RANGING);
-
-	// Enable/Disable Sigma and Signal check
-	VL53L0X_SetLimitCheckEnable(dev, VL53L0X_CHECKENABLE_SIGMA_FINAL_RANGE, 1);
-	VL53L0X_SetLimitCheckEnable(dev, VL53L0X_CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, 1);
-	VL53L0X_SetLimitCheckValue(dev, VL53L0X_CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, (FixPoint1616_t)(0.1*65536));
-	VL53L0X_SetLimitCheckValue(dev, VL53L0X_CHECKENABLE_SIGMA_FINAL_RANGE, (FixPoint1616_t)(60*65536));
-	VL53L0X_SetMeasurementTimingBudgetMicroSeconds(dev, 33000);
-	VL53L0X_SetVcselPulsePeriod(dev, VL53L0X_VCSEL_PERIOD_PRE_RANGE, 18);
-	VL53L0X_SetVcselPulsePeriod(dev, VL53L0X_VCSEL_PERIOD_FINAL_RANGE, 14);
-
-	// Set up GPIO for interrupts
-	VL53L0X_SetGpioConfig(dev, 0, VL53L0X_DEVICEMODE_CONTINUOUS_RANGING,
-	        VL53L0X_REG_SYSTEM_INTERRUPT_GPIO_NEW_SAMPLE_READY,
-	        VL53L0X_INTERRUPTPOLARITY_LOW);
-	VL53L0X_StartMeasurement(dev);
-	VL53L0X_ClearInterruptMask(dev, VL53L0X_REG_SYSTEM_INTERRUPT_GPIO_NEW_SAMPLE_READY);
-}
 
 /* USER CODE END 0 */
 
@@ -196,9 +144,7 @@ void TOF_Init(VL53L0X_DEV dev, struct TOF_Calibration tof){
 int main(void)
 {
 	/* USER CODE BEGIN 1 */
-	struct TOF_Calibration TOF_FL;
-	struct TOF_Calibration TOF_RL;
-	struct TOF_Calibration TOF_F;
+	
 	/* USER CODE END 1 */
 
 	/* MCU Configuration--------------------------------------------------------*/
@@ -229,17 +175,10 @@ int main(void)
 	MX_TIM8_Init();
 	/* USER CODE BEGIN 2 */
 
-	FL_I2C1->I2cHandle = &hi2c1;
-	FL_I2C1->I2cDevAddr = 0x52;
-	RL_I2C2->I2cHandle = &hi2c2;
-	RL_I2C2->I2cDevAddr = 0x52;
-	F_I2C3->I2cHandle = &hi2c3;
-	F_I2C3->I2cDevAddr = 0x52;
-
 	position_init(BASE_MOTOR_SPEED, TOF_CALIBRATION_DIST, STOPPING_DISTANCE);
-	TOF_Init(FL_I2C1, TOF_FL);
-	TOF_Init(RL_I2C2, TOF_RL);
-	TOF_Init(F_I2C3, TOF_F);
+	TOF_Init(&hi2c1, FRONT_SIDE_TOF);
+	TOF_Init(&hi2c2, REAR_SIDE_TOF);
+	TOF_Init(&hi2c3, FORWARD_TOF);
 
 	motor_init(&controllers[FRONT_LEFT_MOTOR]);
 	motor_init(&controllers[FRONT_RIGHT_MOTOR]);
@@ -267,12 +206,12 @@ int main(void)
 		while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1) {
 			// Check for side ToF reading.
 			if(getTofStatus(FRONT_SIDE_TOF) && getTofStatus(REAR_SIDE_TOF)) {
-				course_correction(controllers, FL_I2C1, RL_I2C2);
+				course_correction(controllers);
 			}
 
 			// Check for forward ToF reading.
 			if(getTofStatus(FORWARD_TOF)) {
-				detect_wall_and_turn(F_I2C3);
+				detect_wall_and_turn();
 			}
 
 		}

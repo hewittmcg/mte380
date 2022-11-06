@@ -9,7 +9,6 @@ typedef struct TOF_Calibration{
   uint8_t isApertureSpads;
   uint8_t VhvSettings;
   uint8_t PhaseCal;
-  VL53L0X_RangingMeasurementData_t RangingData;
 } TOF_Calibration;
 
 // ToF sensor locations.
@@ -25,14 +24,16 @@ typedef struct {
 	volatile int data_ready[NUM_TOFS]; // Set by ISR handling EXTI from ToF sensor
 } TofStatus;
 
+void HAL_GPIO_EXTI_Callback(uint16_t gpio_pin);
+
 void position_init(int base_speed, int tof_calibration, int stopping_dist);
+
+void TOF_Init(I2C_HandleTypeDef *hi2c, TofSensor sensor);
 
 VL53L0X_Error get_tof_rangedata_cts(VL53L0X_DEV dev, uint16_t *range);
 
-void detect_wall_and_turn(VL53L0X_DEV F_Tof);
+void detect_wall_and_turn();
 
-void course_correction(MotorController controllers[], VL53L0X_DEV FL_Tof, VL53L0X_DEV RL_Tof);
+void course_correction(MotorController controllers[]);
 
 int getTofStatus(TofSensor sensor);
-
-void setTofStatus(TofSensor sensor, int value);
