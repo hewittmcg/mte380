@@ -25,14 +25,14 @@ typedef struct {
 	volatile int data_ready[NUM_TOFS]; // Set by ISR handling EXTI from ToF sensor
 } TofStatus;
 
-void HAL_GPIO_EXTI_Callback(uint16_t gpio_pin);
+void position_init(int base_speed, int tof_calibration, int stopping_dist);
 
-void TOF_Init(VL53L0X_DEV *dev[], struct TOF_Calibration *tofs[], int base_speed);
+VL53L0X_Error get_tof_rangedata_cts(VL53L0X_DEV dev, uint16_t *range);
 
-VL53L0X_Error get_tof_rangedata_cts(TofSensor sensor, uint16_t *range);
+void detect_wall_and_turn(VL53L0X_DEV F_Tof);
 
-void detect_wall_and_turn();
-
-void course_correction(MotorController controllers[]);
+void course_correction(MotorController controllers[], VL53L0X_DEV FL_Tof, VL53L0X_DEV RL_Tof);
 
 int getTofStatus(TofSensor sensor);
+
+void setTofStatus(TofSensor sensor, int value);

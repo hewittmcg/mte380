@@ -40,12 +40,12 @@
 #define MOTOR_RATIO_MIN 1.0f
 #define MOTOR_RATIO_MAX 3.0f
 
+#define TOF_CALIBRATION_DIST 43000
+#define STOPPING_DISTANCE 250
+
 // Motor speeds
 #define BASE_MOTOR_SPEED 50
 #define TURNING_MOTOR_SPEED 100
-
-// Scaling factor to compensate for right motor being weaker.
-#define RMOTOR_SCALING_FACTOR 2
 
 // Motors used in murphy.
 
@@ -148,6 +148,44 @@ static void MX_TIM8_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+// Handle external interrupt from ToF sensors
+void HAL_GPIO_EXTI_Callback(uint16_t gpio_pin) {
+	switch(gpio_pin) {
+	case FR_TOF_EXTI_Pin:
+		setTofStatus(FORWARD_TOF, 1);
+	case FL_TOF_EXTI_Pin:
+		setTofStatus(FRONT_SIDE_TOF, 1);
+	case RL_TOF_EXTI_Pin:
+		setTofStatus(REAR_SIDE_TOF, 1);
+	}
+}
+
+void TOF_Init(VL53L0X_DEV dev, struct TOF_Calibration tof){
+	// VL53L0X init for Single Measurement
+	VL53L0X_WaitDeviceBooted(dev);
+	VL53L0X_DataInit(dev);
+	VL53L0X_StaticInit(dev);
+	VL53L0X_PerformRefCalibration(dev, &tof.VhvSettings, &tof.PhaseCal);
+	VL53L0X_PerformRefSpadManagement(dev, &tof.refSpadCount, &tof.isApertureSpads);
+	VL53L0X_SetOffsetCalibrationDataMicroMeter(dev, TOF_CALIBRATION_DIST);
+	VL53L0X_SetDeviceMode(dev, VL53L0X_DEVICEMODE_CONTINUOUS_RANGING);
+
+	// Enable/Disable Sigma and Signal check
+	VL53L0X_SetLimitCheckEnable(dev, VL53L0X_CHECKENABLE_SIGMA_FINAL_RANGE, 1);
+	VL53L0X_SetLimitCheckEnable(dev, VL53L0X_CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, 1);
+	VL53L0X_SetLimitCheckValue(dev, VL53L0X_CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, (FixPoint1616_t)(0.1*65536));
+	VL53L0X_SetLimitCheckValue(dev, VL53L0X_CHECKENABLE_SIGMA_FINAL_RANGE, (FixPoint1616_t)(60*65536));
+	VL53L0X_SetMeasurementTimingBudgetMicroSeconds(dev, 33000);
+	VL53L0X_SetVcselPulsePeriod(dev, VL53L0X_VCSEL_PERIOD_PRE_RANGE, 18);
+	VL53L0X_SetVcselPulsePeriod(dev, VL53L0X_VCSEL_PERIOD_FINAL_RANGE, 14);
+
+	// Set up GPIO for interrupts
+	VL53L0X_SetGpioConfig(dev, 0, VL53L0X_DEVICEMODE_CONTINUOUS_RANGING,
+	        VL53L0X_REG_SYSTEM_INTERRUPT_GPIO_NEW_SAMPLE_READY,
+	        VL53L0X_INTERRUPTPOLARITY_LOW);
+	VL53L0X_StartMeasurement(dev);
+	VL53L0X_ClearInterruptMask(dev, VL53L0X_REG_SYSTEM_INTERRUPT_GPIO_NEW_SAMPLE_READY);
+}
 
 /* USER CODE END 0 */
 
@@ -158,33 +196,9 @@ static void MX_TIM8_Init(void);
 int main(void)
 {
 	/* USER CODE BEGIN 1 */
-	struct TOF_Calibration TOF_F = {};
-	struct TOF_Calibration TOF_FL = {};
-	struct TOF_Calibration TOF_RL = {};
-	static TOF_Calibration TOFs[NUM_TOFS] = {
-		[FORWARD_TOF] = {
-			.refSpadCount = 0,
-			.isApertureSpads = 0,
-			.VhvSettings = 0,
-			.PhaseCal = 0,
-			.RangingData = {},
-		},
-		[FRONT_SIDE_TOF] = {
-				.refSpadCount = 0,
-				.isApertureSpads = 0,
-				.VhvSettings = 0,
-				.PhaseCal = 0,
-				.RangingData = {},
-			},
-		[REAR_SIDE_TOF] = {
-				.refSpadCount = 0,
-				.isApertureSpads = 0,
-				.VhvSettings = 0,
-				.PhaseCal = 0,
-				.RangingData = {},
-			},
-	};
-
+	struct TOF_Calibration TOF_FL;
+	struct TOF_Calibration TOF_RL;
+	struct TOF_Calibration TOF_F;
 	/* USER CODE END 1 */
 
 	/* MCU Configuration--------------------------------------------------------*/
@@ -222,7 +236,10 @@ int main(void)
 	F_I2C3->I2cHandle = &hi2c3;
 	F_I2C3->I2cDevAddr = 0x52;
 
-	TOF_Init(&GET_TOF_DEV_PTR, &TOFs, BASE_MOTOR_SPEED);
+	position_init(BASE_MOTOR_SPEED, TOF_CALIBRATION_DIST, STOPPING_DISTANCE);
+	TOF_Init(FL_I2C1, TOF_FL);
+	TOF_Init(RL_I2C2, TOF_RL);
+	TOF_Init(F_I2C3, TOF_F);
 
 	motor_init(&controllers[FRONT_LEFT_MOTOR]);
 	motor_init(&controllers[FRONT_RIGHT_MOTOR]);
@@ -241,10 +258,8 @@ int main(void)
 	/* USER CODE BEGIN WHILE */
 	while (1)
 	{
-
 		// Wait for button press before starting to move.
 		while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
-
 		HAL_Delay(1000);
 		move_forward(BASE_MOTOR_SPEED);
 
@@ -252,13 +267,14 @@ int main(void)
 		while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1) {
 			// Check for side ToF reading.
 			if(getTofStatus(FRONT_SIDE_TOF) && getTofStatus(REAR_SIDE_TOF)) {
-				course_correction(controllers);
+				course_correction(controllers, FL_I2C1, RL_I2C2);
 			}
 
 			// Check for forward ToF reading.
 			if(getTofStatus(FORWARD_TOF)) {
-				detect_wall_and_turn();
+				detect_wall_and_turn(F_I2C3);
 			}
+
 		}
 
 		stop();
