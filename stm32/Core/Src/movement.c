@@ -56,7 +56,6 @@ void move_backward(int speed) {
 		set_motor_speed(&controllers[FRONT_LEFT_MOTOR], i);
 		set_motor_speed(&controllers[REAR_RIGHT_MOTOR], i);
 		set_motor_speed(&controllers[REAR_LEFT_MOTOR], i);
-		detect_wall_and_turn();
 		HAL_Delay(25);
 	}
 }
