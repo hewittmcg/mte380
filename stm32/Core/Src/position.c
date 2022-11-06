@@ -71,9 +71,9 @@ void TOF_Init(I2C_HandleTypeDef *hi2c, TofSensor sensor){
 // Read data from the given ToF sensor and set the pointer passed in to the range, returning any errors.
 // To be called when using continuous ranging with interrupts.
 // cannot be called until interrupt fires, i.e, check status before calling
-VL53L0X_Error get_tof_rangedata_cts(VL53L0X_DEV dev, uint16_t *range) {
+VL53L0X_Error get_tof_rangedata_cts(TofSensor sensor, uint16_t *range) {
 	VL53L0X_RangingMeasurementData_t tof_rangedata = { 0 };
-	VL53L0X_Error err = VL53L0X_GetRangingMeasurementData(dev, &tof_rangedata);
+	VL53L0X_Error err = VL53L0X_GetRangingMeasurementData(&TOF_I2C[sensor], &tof_rangedata);
 	if(err) {
 		return err;
 	}
@@ -81,7 +81,7 @@ VL53L0X_Error get_tof_rangedata_cts(VL53L0X_DEV dev, uint16_t *range) {
 	// Needs to be a critical section to avoid an edge case where the interrupt mask is cleared and the interrupt fires
 	// before tof_status.data_ready[sensor] is set to 0, meaning that it will get set to 0 and never back to 1.
 	bool enabled = critical_section_start();
-	err = VL53L0X_ClearInterruptMask(dev, VL53L0X_REG_SYSTEM_INTERRUPT_GPIO_NEW_SAMPLE_READY);
+	err = VL53L0X_ClearInterruptMask(&TOF_I2C[sensor], VL53L0X_REG_SYSTEM_INTERRUPT_GPIO_NEW_SAMPLE_READY);
 
 	if(err) {
 		// This should likely be a hard fault condition, as the data ready state is now unclear.
@@ -89,7 +89,7 @@ VL53L0X_Error get_tof_rangedata_cts(VL53L0X_DEV dev, uint16_t *range) {
 		return err;
 	}
 
-	tof_status.data_ready[FORWARD_TOF] = 0;
+	tof_status.data_ready[sensor] = 0;
 
 	critical_section_end(enabled);
 
@@ -102,7 +102,7 @@ VL53L0X_Error get_tof_rangedata_cts(VL53L0X_DEV dev, uint16_t *range) {
 void detect_wall_and_turn(void) {
 
 	uint16_t range = 0;
-	VL53L0X_Error err = get_tof_rangedata_cts(&TOF_I2C[FORWARD_TOF], &range);
+	VL53L0X_Error err = get_tof_rangedata_cts(FORWARD_TOF, &range);
 
 	if(err) {
 		stop();
@@ -139,8 +139,8 @@ void course_correction(MotorController controllers[]) {
 	// Get data from the side ToF sensors
 	uint16_t front = 0;
 	uint16_t rear = 0;
-	VL53L0X_Error err1 = get_tof_rangedata_cts(&TOF_I2C[FRONT_SIDE_TOF], &front);
-	VL53L0X_Error err2 = get_tof_rangedata_cts(&TOF_I2C[REAR_SIDE_TOF], &rear);
+	VL53L0X_Error err1 = get_tof_rangedata_cts(FRONT_SIDE_TOF, &front);
+	VL53L0X_Error err2 = get_tof_rangedata_cts(REAR_SIDE_TOF, &rear);
 
 	if(err1 != VL53L0X_ERROR_NONE || err2 != VL53L0X_ERROR_NONE) {
 	  // I2C might be disconnected, so stop to indicate we're having issues.
