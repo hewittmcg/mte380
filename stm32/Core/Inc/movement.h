@@ -12,7 +12,7 @@ typedef enum {
 } Motor;
 
 // Initialize the motor controllers with the given turning speed and base speed.
-void movement_init(MotorController *mcs, int turning_speed, int base_speed);
+void movement_init(MotorController *mcs);
 
 // Move the robot forward, starting from 0 and slowly accelerating to the speed %.
 void move_forward(int speed);
