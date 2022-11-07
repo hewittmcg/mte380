@@ -7,7 +7,7 @@
 
 static int BASE_MOTOR_SPEED = 90;
 static int TOF_CALIBRATION_DIST = 43000;
-static int STOPPING_DISTANCE = 250;
+static int STOPPING_DISTANCE = 350;
 
 // Storage for status of whether ToF sensor data ready
 static TofStatus tof_status;
@@ -113,11 +113,11 @@ void detect_wall_and_turn(void) {
 		// Execute right turn and continue
 		stop();
 
-		HAL_Delay(25);
+		HAL_Delay(1000);
 
 		turn_right();
 
-		HAL_Delay(250);
+		HAL_Delay(1000);
 
 		move_forward(BASE_MOTOR_SPEED);
 	}
@@ -149,7 +149,7 @@ void course_correction(MotorController controllers[]) {
 	}
 
 	if (front > rear) {
-		float x = (float)(front - rear)/(float)front * 10;
+		float x = (float)(front - rear)/(float)front * 5;
 		if(1 - x < 0) {
 			x = 1;
 		}
@@ -162,7 +162,7 @@ void course_correction(MotorController controllers[]) {
 	}
 
 	if (rear > front) {
-		float x = (float)(rear - front)/(float)rear * 10;
+		float x = (float)(rear - front)/(float)rear * 5;
 		if(1 - x < 0) {
 			x = 1;
 		}

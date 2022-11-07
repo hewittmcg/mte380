@@ -41,7 +41,7 @@
 #define MOTOR_RATIO_MAX 3.0f
 
 #define TOF_CALIBRATION_DIST 43000
-#define STOPPING_DISTANCE 250
+#define STOPPING_DISTANCE 400
 
 // Motor speeds
 #define BASE_MOTOR_SPEED 90
@@ -195,14 +195,14 @@ int main(void)
 		// Main loop: correct and detect walls until button is pressed again.
 		while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1) {
 			// Check for side ToF reading.
-			if(getTofStatus(FRONT_SIDE_TOF) && getTofStatus(REAR_SIDE_TOF)) {
+			//if(getTofStatus(FRONT_SIDE_TOF) && getTofStatus(REAR_SIDE_TOF)) {
 				course_correction(controllers);
-			}
+			//}
 
 			// Check for forward ToF reading.
-			if(getTofStatus(FORWARD_TOF)) {
+			//if(getTofStatus(FORWARD_TOF)) {
 				detect_wall_and_turn();
-			}
+			//}
 
 		}
 
