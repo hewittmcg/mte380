@@ -5,7 +5,7 @@
 #include "helpers.h"
 #include "stm32f4xx_hal_gpio.h"
 
-static int BASE_MOTOR_SPEED = 50;
+static int BASE_MOTOR_SPEED = 90;
 static int TOF_CALIBRATION_DIST = 43000;
 static int STOPPING_DISTANCE = 250;
 
@@ -149,20 +149,26 @@ void course_correction(MotorController controllers[]) {
 	}
 
 	if (front > rear) {
-		float x = (float)(front - rear)/(float)front;
+		float x = (float)(front - rear)/(float)front * 10;
+		if(1 - x < 0) {
+			x = 1;
+		}
 
 		set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
 		set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
 
-		set_motor_speed(&controllers[FRONT_LEFT_MOTOR], 0);
-		set_motor_speed(&controllers[REAR_LEFT_MOTOR], 0);
+		set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (int)((1-x) * BASE_MOTOR_SPEED));
+		set_motor_speed(&controllers[REAR_LEFT_MOTOR], (int)((1-x) * BASE_MOTOR_SPEED));
 	}
 
 	if (rear > front) {
-		float x = (float)(rear - front)/(float)rear;
+		float x = (float)(rear - front)/(float)rear * 10;
+		if(1 - x < 0) {
+			x = 1;
+		}
 
-		set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], 0);
-		set_motor_speed(&controllers[REAR_RIGHT_MOTOR], 0);
+		set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (int)((1-x) * BASE_MOTOR_SPEED));
+		set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (int)((1-x)* BASE_MOTOR_SPEED));
 
 		set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
 		set_motor_speed(&controllers[REAR_LEFT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));

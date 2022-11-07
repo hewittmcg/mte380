@@ -44,7 +44,7 @@
 #define STOPPING_DISTANCE 250
 
 // Motor speeds
-#define BASE_MOTOR_SPEED 50
+#define BASE_MOTOR_SPEED 90
 #define TURNING_MOTOR_SPEED 100
 
 // Motors used in murphy.
