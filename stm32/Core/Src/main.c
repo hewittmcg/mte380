@@ -180,17 +180,7 @@ int main(void)
 	TOF_Init(&hi2c2, REAR_SIDE_TOF);
 	TOF_Init(&hi2c3, FORWARD_TOF);
 
-	motor_init(&controllers[FRONT_LEFT_MOTOR]);
-	motor_init(&controllers[FRONT_RIGHT_MOTOR]);
-	motor_init(&controllers[REAR_LEFT_MOTOR]);
-	motor_init(&controllers[REAR_RIGHT_MOTOR]);
-
-	set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_OFF);
-	set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_OFF);
-	set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_OFF);
-	set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_OFF);
-
-	movement_init(&controllers, TURNING_MOTOR_SPEED, BASE_MOTOR_SPEED);
+	movement_init(controllers, TURNING_MOTOR_SPEED, BASE_MOTOR_SPEED);
 	/* USER CODE END 2 */
 
 	/* Infinite loop */

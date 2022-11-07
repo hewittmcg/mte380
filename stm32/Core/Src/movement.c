@@ -7,10 +7,20 @@ static MotorController *controllers;
 static int TURNING_MOTOR_SPEED;
 static int BASE_MOTOR_SPEED;
 
-void movement_init(MotorController *mcs[], int turn_speed, int base_speed) {
+void movement_init(MotorController *mcs, int turn_speed, int base_speed) {
   controllers = mcs;
   TURNING_MOTOR_SPEED = turn_speed;
   BASE_MOTOR_SPEED = base_speed;
+
+  motor_init(&controllers[FRONT_LEFT_MOTOR]);
+	motor_init(&controllers[FRONT_RIGHT_MOTOR]);
+	motor_init(&controllers[REAR_LEFT_MOTOR]);
+	motor_init(&controllers[REAR_RIGHT_MOTOR]);
+
+	set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_OFF);
+	set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_OFF);
+	set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_OFF);
+	set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_OFF);
 }
 
 // Stop robot movement.
