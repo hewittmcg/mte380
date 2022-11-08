@@ -1,6 +1,8 @@
 #include "movement.h"
 #include "constants.h"
 
+#define ACCELERATION_INCREMENT 10
+
 // Motors used in murphy.
 static MotorController *controllers;
 
@@ -37,7 +39,7 @@ void stop() {
 
 void move_forward(int speed) {
   // Slowly increase speed.
-    for (int i = 0; i <= speed; i+=10) {
+    for (int i = 0; i <= speed; i += ACCELERATION_INCREMENT) {
         set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], i);
         set_motor_speed(&controllers[FRONT_LEFT_MOTOR], i);
         set_motor_speed(&controllers[REAR_RIGHT_MOTOR], i);
@@ -48,7 +50,7 @@ void move_forward(int speed) {
 
 void move_backward(int speed) {
   // Slowly increase speed.
-	for (int i = 0; i >= speed; i-=10) {
+	for (int i = 0; i >= speed; i -= ACCELERATION_INCREMENT) {
 		set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], i);
 		set_motor_speed(&controllers[FRONT_LEFT_MOTOR], i);
 		set_motor_speed(&controllers[REAR_RIGHT_MOTOR], i);
@@ -65,7 +67,7 @@ void turn_right() {
   set_motor_speed(&controllers[FRONT_LEFT_MOTOR], TURNING_MOTOR_SPEED);
   set_motor_speed(&controllers[REAR_LEFT_MOTOR], TURNING_MOTOR_SPEED);
 
-  HAL_Delay(475);
+  HAL_Delay(RIGHT_TURN_DELAY);
 
   stop();
 }
@@ -78,7 +80,7 @@ void turn_left() {
   set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (-1)*TURNING_MOTOR_SPEED);
   set_motor_speed(&controllers[REAR_LEFT_MOTOR], (-1)*TURNING_MOTOR_SPEED);
 
-  HAL_Delay(400);
+  HAL_Delay(LEFT_TURN_DELAY);
 
   stop();
 }

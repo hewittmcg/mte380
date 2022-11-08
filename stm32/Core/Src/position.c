@@ -141,7 +141,7 @@ void course_correction(MotorController controllers[]) {
 	}
 
 	if (front > rear) {
-		float x = (float)(front - rear)/(float)front * 5;
+		float x = (float)(front - rear)/(float)front * CORRECTION_FACTOR;
 		if(1 - x < 0) {
 			x = 1;
 		}
@@ -154,7 +154,7 @@ void course_correction(MotorController controllers[]) {
 	}
 
 	if (rear > front) {
-		float x = (float)(rear - front)/(float)rear * 5;
+		float x = (float)(rear - front)/(float)rear * CORRECTION_FACTOR;
 		if(1 - x < 0) {
 			x = 1;
 		}
