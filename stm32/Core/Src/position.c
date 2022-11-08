@@ -3,11 +3,9 @@
 #include "vl53l0x_api.h"
 #include "main.h"
 #include "helpers.h"
-#include "stm32f4xx_hal_gpio.h"
+#include "constants.h"
 
-static int BASE_MOTOR_SPEED = 90;
-static int TOF_CALIBRATION_DIST = 43000;
-static int STOPPING_DISTANCE = 350;
+#include "stm32f4xx_hal_gpio.h"
 
 // Storage for status of whether ToF sensor data ready
 static TofStatus tof_status;
@@ -29,12 +27,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t gpio_pin) {
 		tof_status.data_ready[REAR_SIDE_TOF] = 1;
 		break;
 	}
-}
-
-void position_init(int base_speed, int tof_calibration, int stopping_dist) {
-	BASE_MOTOR_SPEED = base_speed;
-	TOF_CALIBRATION_DIST = tof_calibration;
-	STOPPING_DISTANCE = stopping_dist;
 }
 
 void TOF_Init(I2C_HandleTypeDef *hi2c, TofSensor sensor){
