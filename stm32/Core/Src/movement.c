@@ -46,12 +46,6 @@ void stop() {
 }
 
 void move_forward(int speed) {
-  // The left motors are wired up backwards.
-    set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_FORWARD);
-    set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_BACKWARD);
-    set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_FORWARD);
-    set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_BACKWARD);
-
   // Slowly increase speed.
     for (int i = 0; i <= speed; i+=10) {
         set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], i);
@@ -63,14 +57,8 @@ void move_forward(int speed) {
 }
 
 void move_backward(int speed) {
-  // The left motors are wired up backwards.
-	set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_BACKWARD);
-	set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_FORWARD);
-	set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_BACKWARD);
-	set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_FORWARD);
-
   // Slowly increase speed.
-	for (int i = 0; i <= speed; i+=1) {
+	for (int i = 0; i >= speed; i-=10) {
 		set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], i);
 		set_motor_speed(&controllers[FRONT_LEFT_MOTOR], i);
 		set_motor_speed(&controllers[REAR_RIGHT_MOTOR], i);
@@ -81,13 +69,8 @@ void move_backward(int speed) {
 
 // Turn 90 degrees to the right.
 void turn_right() {
-  set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_BACKWARD);
-  set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_BACKWARD);
-  set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_BACKWARD);
-  set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_BACKWARD);
-
-  set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], TURNING_MOTOR_SPEED);
-  set_motor_speed(&controllers[REAR_RIGHT_MOTOR], TURNING_MOTOR_SPEED);
+  set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (-1)*TURNING_MOTOR_SPEED);
+  set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (-1)*TURNING_MOTOR_SPEED);
 
   set_motor_speed(&controllers[FRONT_LEFT_MOTOR], TURNING_MOTOR_SPEED);
   set_motor_speed(&controllers[REAR_LEFT_MOTOR], TURNING_MOTOR_SPEED);
@@ -99,16 +82,11 @@ void turn_right() {
 
 // Turn 90 degrees to the left.
 void turn_left() {
-  set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_FORWARD);
-  set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_FORWARD);
-  set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_FORWARD);
-  set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_FORWARD);
-
   set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], TURNING_MOTOR_SPEED);
   set_motor_speed(&controllers[REAR_RIGHT_MOTOR], TURNING_MOTOR_SPEED);
 
-  set_motor_speed(&controllers[FRONT_LEFT_MOTOR], TURNING_MOTOR_SPEED);
-  set_motor_speed(&controllers[REAR_LEFT_MOTOR], TURNING_MOTOR_SPEED);
+  set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (-1)*TURNING_MOTOR_SPEED);
+  set_motor_speed(&controllers[REAR_LEFT_MOTOR], (-1)*TURNING_MOTOR_SPEED);
 
   HAL_Delay(400);
 
