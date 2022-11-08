@@ -105,11 +105,11 @@ void detect_wall_and_turn(void) {
 		// Execute right turn and continue
 		stop();
 
-		HAL_Delay(25);
+		HAL_Delay(1000);
 
 		turn_right();
 
-		HAL_Delay(250);
+		HAL_Delay(1000);
 
 		move_forward(BASE_MOTOR_SPEED);
 	}
@@ -141,20 +141,26 @@ void course_correction(MotorController controllers[]) {
 	}
 
 	if (front > rear) {
-		float x = (float)(front - rear)/(float)front;
+		float x = (float)(front - rear)/(float)front * 5;
+		if(1 - x < 0) {
+			x = 1;
+		}
 
 		set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
 		set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
 
-		set_motor_speed(&controllers[FRONT_LEFT_MOTOR], 0);
-		set_motor_speed(&controllers[REAR_LEFT_MOTOR], 0);
+		set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (int)((1-x) * BASE_MOTOR_SPEED));
+		set_motor_speed(&controllers[REAR_LEFT_MOTOR], (int)((1-x) * BASE_MOTOR_SPEED));
 	}
 
 	if (rear > front) {
-		float x = (float)(rear - front)/(float)rear;
+		float x = (float)(rear - front)/(float)rear * 5;
+		if(1 - x < 0) {
+			x = 1;
+		}
 
-		set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], 0);
-		set_motor_speed(&controllers[REAR_RIGHT_MOTOR], 0);
+		set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (int)((1-x) * BASE_MOTOR_SPEED));
+		set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (int)((1-x)* BASE_MOTOR_SPEED));
 
 		set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
 		set_motor_speed(&controllers[REAR_LEFT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
