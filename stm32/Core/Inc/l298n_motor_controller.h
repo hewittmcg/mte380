@@ -37,8 +37,7 @@ typedef struct {
 	MotorPin in1_pin;
 	MotorPin in2_pin;
 	MotorPWMPin en_pin;
-	MotorDir dir;
-	int speed;
+	int8_t speed;
 } MotorController;
 
 // Set the direction of the motor. Returns true if successful, false otherwise.
@@ -46,6 +45,9 @@ bool set_motor_direction(MotorController *mc, MotorDir dir);
 
 // Set the speed of the motor using PWM. Returns true if successful, false otherwise.
 bool set_motor_speed(MotorController *mc, int8_t speed_percent);
+
+// Get the speed of the motor currently
+int8_t get_motor_speed(MotorController *mc);
 
 // Initialize a motor controller. Returns true if successful, false otherwise.
 bool motor_init(MotorController *mc);
