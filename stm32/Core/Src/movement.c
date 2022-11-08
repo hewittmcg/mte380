@@ -1,6 +1,8 @@
 #include "movement.h"
 #include "constants.h"
 
+#define ACCELERATION_INCREMENT 10
+
 // Motors used in murphy.
 static MotorController *controllers;
 
@@ -21,22 +23,12 @@ void movement_init(MotorController *mcs) {
 
 // Stop robot movement.
 void stop() {
-  set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_BACKWARD);
-  set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_FORWARD);
-  set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_BACKWARD);
-  set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_FORWARD);
+  set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (-1)*MOTOR_BRAKE_SPEED);
+  set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (-1)*MOTOR_BRAKE_SPEED);
+  set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (-1)*MOTOR_BRAKE_SPEED);
+  set_motor_speed(&controllers[REAR_LEFT_MOTOR], (-1)*MOTOR_BRAKE_SPEED);
 
-  set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], 15);
-  set_motor_speed(&controllers[REAR_RIGHT_MOTOR], 15);
-  set_motor_speed(&controllers[FRONT_LEFT_MOTOR], 15);
-  set_motor_speed(&controllers[REAR_LEFT_MOTOR], 15);
-
-  HAL_Delay(200);
-
-  set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_OFF);
-  set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_OFF);
-  set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_OFF);
-  set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_OFF);
+  HAL_Delay(MOTOR_BRAKE_DELAY);
 
   set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], 0);
   set_motor_speed(&controllers[REAR_RIGHT_MOTOR], 0);
@@ -46,14 +38,8 @@ void stop() {
 }
 
 void move_forward(int speed) {
-  // The left motors are wired up backwards.
-    set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_FORWARD);
-    set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_BACKWARD);
-    set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_FORWARD);
-    set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_BACKWARD);
-
   // Slowly increase speed.
-    for (int i = 0; i <= speed; i+=10) {
+    for (int i = 0; i <= speed; i += ACCELERATION_INCREMENT) {
         set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], i);
         set_motor_speed(&controllers[FRONT_LEFT_MOTOR], i);
         set_motor_speed(&controllers[REAR_RIGHT_MOTOR], i);
@@ -63,14 +49,8 @@ void move_forward(int speed) {
 }
 
 void move_backward(int speed) {
-  // The left motors are wired up backwards.
-	set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_BACKWARD);
-	set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_FORWARD);
-	set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_BACKWARD);
-	set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_FORWARD);
-
   // Slowly increase speed.
-	for (int i = 0; i <= speed; i+=1) {
+	for (int i = 0; i >= speed; i -= ACCELERATION_INCREMENT) {
 		set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], i);
 		set_motor_speed(&controllers[FRONT_LEFT_MOTOR], i);
 		set_motor_speed(&controllers[REAR_RIGHT_MOTOR], i);
@@ -81,36 +61,26 @@ void move_backward(int speed) {
 
 // Turn 90 degrees to the right.
 void turn_right() {
-  set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_BACKWARD);
-  set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_BACKWARD);
-  set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_BACKWARD);
-  set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_BACKWARD);
-
-  set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], TURNING_MOTOR_SPEED);
-  set_motor_speed(&controllers[REAR_RIGHT_MOTOR], TURNING_MOTOR_SPEED);
+  set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (-1)*TURNING_MOTOR_SPEED);
+  set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (-1)*TURNING_MOTOR_SPEED);
 
   set_motor_speed(&controllers[FRONT_LEFT_MOTOR], TURNING_MOTOR_SPEED);
   set_motor_speed(&controllers[REAR_LEFT_MOTOR], TURNING_MOTOR_SPEED);
 
-  HAL_Delay(450);
+  HAL_Delay(RIGHT_TURN_DELAY);
 
   stop();
 }
 
 // Turn 90 degrees to the left.
 void turn_left() {
-  set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_FORWARD);
-  set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_FORWARD);
-  set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_FORWARD);
-  set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_FORWARD);
-
   set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], TURNING_MOTOR_SPEED);
   set_motor_speed(&controllers[REAR_RIGHT_MOTOR], TURNING_MOTOR_SPEED);
 
-  set_motor_speed(&controllers[FRONT_LEFT_MOTOR], TURNING_MOTOR_SPEED);
-  set_motor_speed(&controllers[REAR_LEFT_MOTOR], TURNING_MOTOR_SPEED);
+  set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (-1)*TURNING_MOTOR_SPEED);
+  set_motor_speed(&controllers[REAR_LEFT_MOTOR], (-1)*TURNING_MOTOR_SPEED);
 
-  HAL_Delay(400);
+  HAL_Delay(LEFT_TURN_DELAY);
 
   stop();
 }
