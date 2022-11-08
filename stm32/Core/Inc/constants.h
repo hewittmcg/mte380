@@ -13,7 +13,7 @@
 #define STOPPING_DISTANCE 350
 
 // Motor speed values.
-#define BASE_MOTOR_SPEED 50
+#define BASE_MOTOR_SPEED 90
 #define TURNING_MOTOR_SPEED 100
 
 
