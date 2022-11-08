@@ -28,7 +28,11 @@ bool set_motor_direction(MotorController *mc, MotorDir dir) {
 	return true;
 }
 
-bool set_motor_speed(MotorController *mc, uint8_t speed_percent) {
+bool set_motor_speed(MotorController *mc, int8_t speed_percent) {
+	if(speed_percent < 0) {
+
+	}
+	int speed_set = 0;
 	if(speed_percent > 100) {
 		speed_percent = 100;
 	}

@@ -26,6 +26,7 @@
 #include "movement.h"
 #include "position.h"
 #include "vl53l0x_api.h"
+#include "constants.h"
 #include <stdio.h>
 #include "stm32f4xx_hal_gpio.h"
 /* USER CODE END Includes */
@@ -37,17 +38,6 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define MOTOR_RATIO_MIN 1.0f
-#define MOTOR_RATIO_MAX 3.0f
-
-#define TOF_CALIBRATION_DIST 43000
-#define STOPPING_DISTANCE 400
-
-// Motor speeds
-#define BASE_MOTOR_SPEED 90
-#define TURNING_MOTOR_SPEED 100
-
-// Motors used in murphy.
 
 /* USER CODE END PTD */
 
@@ -175,12 +165,12 @@ int main(void)
 	MX_TIM8_Init();
 	/* USER CODE BEGIN 2 */
 
-	position_init(BASE_MOTOR_SPEED, TOF_CALIBRATION_DIST, STOPPING_DISTANCE);
+	// Initialize ToF sensors
 	TOF_Init(&hi2c1, FRONT_SIDE_TOF);
 	TOF_Init(&hi2c2, REAR_SIDE_TOF);
 	TOF_Init(&hi2c3, FORWARD_TOF);
 
-	movement_init(controllers, TURNING_MOTOR_SPEED, BASE_MOTOR_SPEED);
+	movement_init(controllers);
 	/* USER CODE END 2 */
 
 	/* Infinite loop */

@@ -1,16 +1,12 @@
 #include "movement.h"
+#include "constants.h"
 
 // Motors used in murphy.
 static MotorController *controllers;
 
-// Motor Speeds
-static int TURNING_MOTOR_SPEED;
-static int BASE_MOTOR_SPEED;
 
-void movement_init(MotorController *mcs, int turn_speed, int base_speed) {
+void movement_init(MotorController *mcs) {
   controllers = mcs;
-  TURNING_MOTOR_SPEED = turn_speed;
-  BASE_MOTOR_SPEED = base_speed;
 
   motor_init(&controllers[FRONT_LEFT_MOTOR]);
   motor_init(&controllers[FRONT_RIGHT_MOTOR]);
@@ -96,7 +92,7 @@ void turn_right() {
   set_motor_speed(&controllers[FRONT_LEFT_MOTOR], TURNING_MOTOR_SPEED);
   set_motor_speed(&controllers[REAR_LEFT_MOTOR], TURNING_MOTOR_SPEED);
 
-  HAL_Delay(450);
+  HAL_Delay(475);
 
   stop();
 }
