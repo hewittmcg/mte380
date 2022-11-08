@@ -21,22 +21,12 @@ void movement_init(MotorController *mcs) {
 
 // Stop robot movement.
 void stop() {
-  set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_BACKWARD);
-  set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_FORWARD);
-  set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_BACKWARD);
-  set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_FORWARD);
+  set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (-1)*MOTOR_BRAKE_SPEED);
+  set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (-1)*MOTOR_BRAKE_SPEED);
+  set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (-1)*MOTOR_BRAKE_SPEED);
+  set_motor_speed(&controllers[REAR_LEFT_MOTOR], (-1)*MOTOR_BRAKE_SPEED);
 
-  set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], 15);
-  set_motor_speed(&controllers[REAR_RIGHT_MOTOR], 15);
-  set_motor_speed(&controllers[FRONT_LEFT_MOTOR], 15);
-  set_motor_speed(&controllers[REAR_LEFT_MOTOR], 15);
-
-  HAL_Delay(200);
-
-  set_motor_direction(&controllers[FRONT_RIGHT_MOTOR], MOTOR_DIR_OFF);
-  set_motor_direction(&controllers[FRONT_LEFT_MOTOR], MOTOR_DIR_OFF);
-  set_motor_direction(&controllers[REAR_RIGHT_MOTOR], MOTOR_DIR_OFF);
-  set_motor_direction(&controllers[REAR_LEFT_MOTOR], MOTOR_DIR_OFF);
+  HAL_Delay(MOTOR_BRAKE_DELAY);
 
   set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], 0);
   set_motor_speed(&controllers[REAR_RIGHT_MOTOR], 0);

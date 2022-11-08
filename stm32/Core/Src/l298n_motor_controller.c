@@ -30,20 +30,28 @@ bool set_motor_direction(MotorController *mc, MotorDir dir) {
 
 bool set_motor_speed(MotorController *mc, int8_t speed_percent) {
 	if(speed_percent < 0) {
-		set_motor_direction(mc, )
+		set_motor_direction(mc, MOTOR_DIR_BACKWARD);
 	}
 	else if(speed_percent == 0){
-
+		set_motor_direction(mc, MOTOR_DIR_OFF);
 	}
-	int speed_set = 0;
-	if(speed_percent > 100) {
-		speed_percent = 100;
+	else if(speed_percent > 0){
+		set_motor_direction(mc, MOTOR_DIR_FORWARD);
+	}
+	mc->speed = speed_percent;
+	uint8_t speed_set = abs(speed_percent);
+	if(speed_set > 100) {
+		speed_set = 100;
 	}
 	// Get value to set CCR to
-	uint16_t ccr_val = (uint16_t)((float)speed_percent / PERCENT_TO_DEC * SPEED_PERCENT_TO_CCR);
+	uint16_t ccr_val = (uint16_t)((float)speed_set / PERCENT_TO_DEC * SPEED_PERCENT_TO_CCR);
 	*(mc->en_pin.ccr_ptr) = ccr_val;
 	
 	return true;
+}
+
+int8_t get_motor_speed(MotorController *mc){
+	return (mc->speed);
 }
 
 bool motor_init(MotorController *mc) {
