@@ -4,6 +4,7 @@
 #include "main.h"
 #include "helpers.h"
 #include "constants.h"
+
 #include "stm32f4xx_hal_gpio.h"
 
 // Storage for status of whether ToF sensor data ready
