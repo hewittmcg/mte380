@@ -23,6 +23,9 @@ typedef struct {
 // Only test the first 4 sections for the time being
 #define COURSE_NUM_SECTIONS 4
 
+// For D control, we want to track the last few errors in a ring buffer to compute the running average.
+#define CC_NUM_TRACKED_MEASUREMENTS 3
+
 // Full course map.
 static CourseSec course_sections[COURSE_NUM_SECTIONS] = {
 	{
@@ -140,7 +143,7 @@ void detect_wall_and_turn(void) {
 		while(1);
 	}
 
-	if(range < STOPPING_DISTANCE_MM) {
+	if(range < course_sections[cur_course_sec].front_stop_dist_mm) {
 		// Execute right turn and continue on the next course section
 		cur_course_sec++;
 		stop();
