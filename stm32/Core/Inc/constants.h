@@ -12,7 +12,9 @@
 
 // ToF calibration info.
 #define TOF_CALIBRATION_DIST 43000
-#define STOPPING_DISTANCE 350
+#define STOPPING_DISTANCE_MM 350
+#define BOARD_SQUARE_SIZE_MM 300
+#define TOF_BASE_SIDE_DIST_MM 100 // distance from the side TOFs to the edge of the board. Need to revisit. 
 
 // Motor speed values.
 #define BASE_MOTOR_SPEED 90

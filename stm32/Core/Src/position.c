@@ -4,8 +4,47 @@
 #include "main.h"
 #include "helpers.h"
 #include "constants.h"
-
+#include <math.h>
 #include "stm32f4xx_hal_gpio.h"
+
+// General course correction constants
+#define SIDE_TOF_SEPARATION_MM 177 // Distance between the two side ToF sensors. TODO revise this
+#define CC_KP 0.1f // Proportional coefficient
+#define CC_KD 0.1f // Derivative coefficient (unused)
+
+// Info for a straight-line section of the course.
+typedef struct {
+	uint16_t front_stop_dist_mm;
+	uint16_t side_dist_mm;
+	// Percentage to scale speed by (i.e. in later sections, where accuracy is more important)
+	// float speed_scaling_percent; 
+} CourseSec;
+
+// Only test the first 4 sections for the time being
+#define COURSE_NUM_SECTIONS 4
+
+// Full course map.
+static CourseSec course_sections[COURSE_NUM_SECTIONS] = {
+	{
+		.front_stop_dist_mm = STOPPING_DISTANCE_MM,
+		.side_dist_mm = TOF_BASE_SIDE_DIST_MM,
+	},
+	{
+		.front_stop_dist_mm = STOPPING_DISTANCE_MM,
+		.side_dist_mm = TOF_BASE_SIDE_DIST_MM,
+	},
+	{
+		.front_stop_dist_mm = STOPPING_DISTANCE_MM,
+		.side_dist_mm = TOF_BASE_SIDE_DIST_MM,
+	},
+	{
+		.front_stop_dist_mm = STOPPING_DISTANCE_MM + BOARD_SQUARE_SIZE_MM,
+		.side_dist_mm = TOF_BASE_SIDE_DIST_MM,
+	}
+};
+
+// Section of the course currently being traversed.
+static uint8_t cur_course_sec = 0;
 
 // Storage for status of whether ToF sensor data ready
 static TofStatus tof_status;
@@ -101,8 +140,9 @@ void detect_wall_and_turn(void) {
 		while(1);
 	}
 
-	if(range < STOPPING_DISTANCE) {
-		// Execute right turn and continue
+	if(range < STOPPING_DISTANCE_MM) {
+		// Execute right turn and continue on the next course section
+		cur_course_sec++;
 		stop();
 
 		HAL_Delay(1000);
@@ -113,6 +153,16 @@ void detect_wall_and_turn(void) {
 
 		move_forward(BASE_MOTOR_SPEED);
 	}
+}
+
+// Calculates the right-angle distance from the centre of the robot to the wall
+// based on readings from the two side ToF sensors.
+static inline float calc_centre_dist(float dist_front, float dist_rear) {
+	// Calculate angle robot is turned at:
+	float theta = atan2((dist_front - dist_rear), SIDE_TOF_SEPARATION_MM);
+
+	// Calculate distance from the bottom ToF and then relate that to the centre
+	return dist_rear*cos(theta) + SIDE_TOF_SEPARATION_MM/2 * sin(theta);
 }
 
 void course_correction(MotorController controllers[]) {
@@ -140,6 +190,24 @@ void course_correction(MotorController controllers[]) {
 	  while(1);
 	}
 
+	float dist = calc_centre_dist(front, rear);
+	// Calculate error between current and expected position
+	float error = course_sections[cur_course_sec].side_dist_mm - dist;
+
+	// Percentage to scale motors by.
+	// A positive scaling factor means that the right motors should have their power increased, and vice versa.
+	float scaling_factor = CC_KP * error;
+
+	int32_t speed_right = (1.0f + scaling_factor) * BASE_MOTOR_SPEED;
+	int32_t speed_left = (1.0f - scaling_factor) * BASE_MOTOR_SPEED;
+
+	set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], speed_right);
+	set_motor_speed(&controllers[REAR_RIGHT_MOTOR], speed_right);
+
+	set_motor_speed(&controllers[FRONT_LEFT_MOTOR], speed_left);
+	set_motor_speed(&controllers[REAR_LEFT_MOTOR], speed_left);
+
+	/*
 	if (front > rear) {
 		float x = (float)(front - rear)/(float)front * CORRECTION_FACTOR;
 		if(1 - x < 0) {
@@ -165,6 +233,7 @@ void course_correction(MotorController controllers[]) {
 		set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
 		set_motor_speed(&controllers[REAR_LEFT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
 	}
+	*/
 }
 
 int getTofStatus(TofSensor sensor) {

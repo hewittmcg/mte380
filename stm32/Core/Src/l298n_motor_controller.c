@@ -7,6 +7,7 @@
 
 
 #include "l298n_motor_controller.h"
+#include "stdlib.h"
 
 // CCR register goes from 0 to 0xffff
 #define SPEED_PERCENT_TO_CCR 0xffff
@@ -28,7 +29,7 @@ bool set_motor_direction(MotorController *mc, MotorDir dir) {
 	return true;
 }
 
-bool set_motor_speed(MotorController *mc, int8_t speed_percent) {
+bool set_motor_speed(MotorController *mc, int speed_percent) {
 	if(speed_percent < 0) {
 		set_motor_direction(mc, MOTOR_DIR_BACKWARD);
 	}
