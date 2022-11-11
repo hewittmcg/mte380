@@ -184,7 +184,7 @@ int main(void)
 
 
 
-	uint16_t range_f, range_sf, range_sr;
+	/*uint16_t range_f, range_sf, range_sr;
 	    VL53L0X_Error err1, err2, err3;
 	    while(1) {
 	        //while(!getTofStatus(FRONT_SIDE_TOF) || !getTofStatus(REAR_SIDE_TOF) || !getTofStatus(FORWARD_TOF));
@@ -192,7 +192,7 @@ int main(void)
 	        err2 = get_tof_rangedata_cts(FRONT_SIDE_TOF, &range_sf);
 	        err3 = get_tof_rangedata_cts(REAR_SIDE_TOF, &range_sr);
 	        asm("nop");
-	    }
+	    }*/
 
 	//move_forward(BASE_MOTOR_SPEED);
 	while (1)
@@ -205,9 +205,9 @@ int main(void)
 		// Main loop: correct and detect walls until button is pressed again.
 		while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1) {
 			// Check for side ToF reading.
-			if(getTofStatus(FRONT_SIDE_TOF) && getTofStatus(REAR_SIDE_TOF)) {
+			//if(getTofStatus(FRONT_SIDE_TOF) && getTofStatus(REAR_SIDE_TOF)) {
 				course_correction(controllers);
-			}
+			//}
 
 			// Check for forward ToF reading.
 			if(getTofStatus(FORWARD_TOF)) {

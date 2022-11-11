@@ -9,7 +9,7 @@
 
 // General course correction constants
 #define SIDE_TOF_SEPARATION_MM 177 // Distance between the two side ToF sensors. TODO revise this
-#define CC_KP 0.01f // Proportional coefficient
+#define CC_KP 0.005f // Proportional coefficient
 #define CC_KD 0.001f // Derivative coefficient (unused)
 
 // Info for a straight-line section of the course.
@@ -146,6 +146,9 @@ void detect_wall_and_turn(void) {
 	if(range < course_sections[cur_course_sec].front_stop_dist_mm) {
 		// Execute right turn and continue on the next course section
 		cur_course_sec++;
+		if(cur_course_sec >= 4) {
+			cur_course_sec = 0;
+		}
 		stop();
 
 		HAL_Delay(1000);
@@ -200,6 +203,12 @@ void course_correction(MotorController controllers[]) {
 	// Percentage to scale motors by.
 	// A positive scaling factor means that the left motors should have their power increased, and vice versa.
 	float scaling_factor = CC_KP * error;
+
+	if(scaling_factor < -0.3f) {
+		scaling_factor = -0.3f;
+	} else if(scaling_factor > 0.3f) {
+		scaling_factor = 0.3f;
+	}
 
 	int32_t speed_right = (1.0f - scaling_factor) * BASE_MOTOR_SPEED;
 	int32_t speed_left = (1.0f + scaling_factor) * BASE_MOTOR_SPEED;
