@@ -6,7 +6,7 @@
  */
 
 #include <stdio.h>
-
+/*
 typedef struct {
     uint16_t size;
     uint16_t *data;
@@ -21,6 +21,7 @@ void ring_buf_init(RingBufStorage *storage, uint16_t size, uint16_t *data_arr) {
     storage->read_ptr = 0;
 }
 
+
 void ring_buf_write()
 #define TEST_ARR(size) ()
 int main()
@@ -29,4 +30,5 @@ int main()
 
     return 0;
 }
+*/
 

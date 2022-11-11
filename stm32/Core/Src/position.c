@@ -9,8 +9,8 @@
 
 // General course correction constants
 #define SIDE_TOF_SEPARATION_MM 177 // Distance between the two side ToF sensors. TODO revise this
-#define CC_KP 0.1f // Proportional coefficient
-#define CC_KD 0.1f // Derivative coefficient (unused)
+#define CC_KP 0.01f // Proportional coefficient
+#define CC_KD 0.001f // Derivative coefficient (unused)
 
 // Info for a straight-line section of the course.
 typedef struct {
@@ -198,11 +198,13 @@ void course_correction(MotorController controllers[]) {
 	float error = course_sections[cur_course_sec].side_dist_mm - dist;
 
 	// Percentage to scale motors by.
-	// A positive scaling factor means that the right motors should have their power increased, and vice versa.
+	// A positive scaling factor means that the left motors should have their power increased, and vice versa.
 	float scaling_factor = CC_KP * error;
 
-	int32_t speed_right = (1.0f + scaling_factor) * BASE_MOTOR_SPEED;
-	int32_t speed_left = (1.0f - scaling_factor) * BASE_MOTOR_SPEED;
+	int32_t speed_right = (1.0f - scaling_factor) * BASE_MOTOR_SPEED;
+	int32_t speed_left = (1.0f + scaling_factor) * BASE_MOTOR_SPEED;
+
+	printf("centre dist: %d, error %d, scaling_factor: %d%%, speed_right: %d, speed_left: %d\r\n", (int)dist, (int)error, (int)(scaling_factor*100), (int)speed_right, (int)speed_left);
 
 	set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], speed_right);
 	set_motor_speed(&controllers[REAR_RIGHT_MOTOR], speed_right);
