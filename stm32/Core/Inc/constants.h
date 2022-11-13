@@ -11,10 +11,9 @@
 #define MS_PER_SEC 1000.0
 
 // ToF calibration info.
-#define TOF_CALIBRATION_DIST 43000
-#define STOPPING_DISTANCE_MM 350
+#define STOPPING_DISTANCE_MM 300
 #define BOARD_SQUARE_SIZE_MM 300
-#define TOF_BASE_SIDE_DIST_MM 100 // distance from the side TOFs to the edge of the board. Need to revisit. 
+#define TOF_BASE_SIDE_DIST_MM 80 // distance from the side TOFs to the edge of the board. Need to revisit.
 
 // Motor speed values.
 #define BASE_MOTOR_SPEED 90
@@ -23,8 +22,8 @@
 #define MOTOR_BRAKE_SPEED 15
 #define MOTOR_BRAKE_DELAY 200
 
-#define RIGHT_TURN_DELAY 475
-#define LEFT_TURN_DELAY 400
+#define RIGHT_TURN_DELAY 350
+#define LEFT_TURN_DELAY 350
 
 // IMU turning constants
 #define IMU_TURN_ERROR_THRESH 5
@@ -33,6 +32,6 @@
 #define IMU_TURN_MIN_FULL_SPEED_ERROR 30
 
 // Course correction values
-#define CORRECTION_FACTOR 5
+#define CORRECTION_FACTOR 10
 
 #endif /* INC_CONSTANTS_H_ */

@@ -5,11 +5,12 @@
 #include "helpers.h"
 #include "constants.h"
 #include <math.h>
+#include <stdlib.h>
 #include "stm32f4xx_hal_gpio.h"
 
 // General course correction constants
 #define SIDE_TOF_SEPARATION_MM 177 // Distance between the two side ToF sensors. TODO revise this
-#define CC_KP 0.005f // Proportional coefficient
+#define CC_KP 0.01f // Proportional coefficient
 #define CC_KD 0.001f // Derivative coefficient (unused)
 
 // Info for a straight-line section of the course.
@@ -21,10 +22,10 @@ typedef struct {
 } CourseSec;
 
 // Only test the first 4 sections for the time being
-#define COURSE_NUM_SECTIONS 4
+#define COURSE_NUM_SECTIONS 11
 
 // For D control, we want to track the last few errors in a ring buffer to compute the running average.
-#define CC_NUM_TRACKED_MEASUREMENTS 3
+#define CC_NUM_TRACKED_MEASUREMENTS 10
 
 // Full course map.
 static CourseSec course_sections[COURSE_NUM_SECTIONS] = {
@@ -43,6 +44,34 @@ static CourseSec course_sections[COURSE_NUM_SECTIONS] = {
 	{
 		.front_stop_dist_mm = STOPPING_DISTANCE_MM + BOARD_SQUARE_SIZE_MM,
 		.side_dist_mm = TOF_BASE_SIDE_DIST_MM,
+	},
+	{
+		.front_stop_dist_mm = STOPPING_DISTANCE_MM + BOARD_SQUARE_SIZE_MM,
+		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + BOARD_SQUARE_SIZE_MM,
+	},
+	{
+		.front_stop_dist_mm = STOPPING_DISTANCE_MM + BOARD_SQUARE_SIZE_MM,
+		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + BOARD_SQUARE_SIZE_MM,
+	},
+	{
+		.front_stop_dist_mm = STOPPING_DISTANCE_MM + BOARD_SQUARE_SIZE_MM,
+		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + BOARD_SQUARE_SIZE_MM,
+	},
+	{
+		.front_stop_dist_mm = STOPPING_DISTANCE_MM + 2*BOARD_SQUARE_SIZE_MM,
+		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + BOARD_SQUARE_SIZE_MM,
+	},
+	{
+		.front_stop_dist_mm = STOPPING_DISTANCE_MM + 2*BOARD_SQUARE_SIZE_MM,
+		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + 2*BOARD_SQUARE_SIZE_MM,
+	},
+	{
+		.front_stop_dist_mm = STOPPING_DISTANCE_MM + 2*BOARD_SQUARE_SIZE_MM,
+		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + 2*BOARD_SQUARE_SIZE_MM,
+	},
+	{
+		.front_stop_dist_mm = STOPPING_DISTANCE_MM + 2*BOARD_SQUARE_SIZE_MM,
+		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + 2*BOARD_SQUARE_SIZE_MM,
 	}
 };
 
@@ -54,7 +83,10 @@ static TofStatus tof_status;
 
 // ToF sensor device mappings
 static VL53L0X_Dev_t TOF_I2C[NUM_TOFS] = {0};
+static int TOF_CALIBRATION_DIST[NUM_TOFS] = {70000, 60000, 45000};
 static struct TOF_Calibration TOFs[NUM_TOFS] = {0};
+static int front_tof_position[CC_NUM_TRACKED_MEASUREMENTS] = {};
+static int front_tof_velocity[CC_NUM_TRACKED_MEASUREMENTS] = {};
 
 // Handle external interrupt from ToF sensors
 void HAL_GPIO_EXTI_Callback(uint16_t gpio_pin) {
@@ -81,7 +113,15 @@ void TOF_Init(I2C_HandleTypeDef *hi2c, TofSensor sensor){
 	VL53L0X_StaticInit(&TOF_I2C[sensor]);
 	VL53L0X_PerformRefCalibration(&TOF_I2C[sensor], &TOFs[sensor].VhvSettings, &TOFs[sensor].PhaseCal);
 	VL53L0X_PerformRefSpadManagement(&TOF_I2C[sensor], &TOFs[sensor].refSpadCount, &TOFs[sensor].isApertureSpads);
-	VL53L0X_SetOffsetCalibrationDataMicroMeter(&TOF_I2C[sensor], TOF_CALIBRATION_DIST);
+	VL53L0X_SetOffsetCalibrationDataMicroMeter(&TOF_I2C[sensor], TOF_CALIBRATION_DIST[sensor]);
+
+	//static int32_t offset = 0;
+	//static uint32_t dist = 100;
+	//dist = (dist*(1<<16));
+	//static VL53L0X_Error err;
+	//err = VL53L0X_PerformOffsetCalibration(&TOF_I2C[sensor], (FixPoint1616_t)dist, &offset);
+	//printf("Offset %d is: %d\r\n", sensor, (int)offset);
+
 	VL53L0X_SetDeviceMode(&TOF_I2C[sensor], VL53L0X_DEVICEMODE_CONTINUOUS_RANGING);
 
 	// Enable/Disable Sigma and Signal check
@@ -138,24 +178,46 @@ void detect_wall_and_turn(void) {
 	uint16_t range = 0;
 	VL53L0X_Error err = get_tof_rangedata_cts(FORWARD_TOF, &range);
 
+	printf("FRONT TOF READING: %d\r\n", (int)range);
+	int slope = front_tof_position[CC_NUM_TRACKED_MEASUREMENTS-1] - front_tof_position[0] / (CC_NUM_TRACKED_MEASUREMENTS);
+
+	static int i = 0;
+	if(i == CC_NUM_TRACKED_MEASUREMENTS) {
+		for (int j = 0; j < CC_NUM_TRACKED_MEASUREMENTS - 1; j++) {
+			front_tof_position[j] = front_tof_position[j+1];
+			front_tof_velocity[j] = front_tof_velocity[j+1];
+		}
+		i -= 1;
+		printf("FRONT TOF RUNNING SLOPE: %d \r\n", (int) slope);
+	}
+	front_tof_position[i] = range;
+	front_tof_velocity[i] = slope;
+	i += 1;
+
+
 	if(err) {
 		stop();
 		while(1);
 	}
-
 	if(range < course_sections[cur_course_sec].front_stop_dist_mm) {
-		// Execute right turn and continue on the next course section
-		cur_course_sec++;
-		if(cur_course_sec >= 4) {
-			cur_course_sec = 0;
+		if(abs(front_tof_velocity[CC_NUM_TRACKED_MEASUREMENTS - 1] - front_tof_velocity[0]) > 400 ) {
+//			 Execute right turn and continue on the next course section
+			cur_course_sec++;
+			if(cur_course_sec >= 11) {
+				cur_course_sec = 0;
+				stop();
+				while(1);
+			}
+			stop();
+
+			HAL_Delay(250);
+
+			printf("FRONT TOF READING AT TURN: %d, Error: %d\r\n", (int)range, (int)front_tof_position_difference);
+			printf("FRONT TOF slope AT TURN: %d \r\n", (int) slope);
+			turn_right();
+
+			HAL_Delay(250);
 		}
-		stop();
-
-		HAL_Delay(1000);
-
-		turn_right();
-
-		HAL_Delay(1000);
 
 		move_forward(BASE_MOTOR_SPEED);
 	}
@@ -195,7 +257,7 @@ void course_correction(MotorController controllers[]) {
 	  stop();
 	  while(1);
 	}
-
+	/*
 	float dist = calc_centre_dist(front, rear);
 	// Calculate error between current and expected position
 	float error = course_sections[cur_course_sec].side_dist_mm - dist;
@@ -220,35 +282,58 @@ void course_correction(MotorController controllers[]) {
 
 	set_motor_speed(&controllers[FRONT_LEFT_MOTOR], speed_left);
 	set_motor_speed(&controllers[REAR_LEFT_MOTOR], speed_left);
+	*/
 
-	/*
+
 	if (front > rear) {
-		float x = (float)(front - rear)/(float)front * CORRECTION_FACTOR;
-		if(1 - x < 0) {
-			x = 1;
-		}
+	        if(rear < (course_sections[cur_course_sec].side_dist_mm - 15)){}
+	        else if(rear > (course_sections[cur_course_sec].side_dist_mm + 15)){
+	            float x = 0.5;
+	            set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
+	            set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (int)((1+x)* BASE_MOTOR_SPEED));
 
-		set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
-		set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
+	            set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (int)((1-x) * BASE_MOTOR_SPEED));
+	            set_motor_speed(&controllers[REAR_LEFT_MOTOR], (int)((1-x) * BASE_MOTOR_SPEED));
+	        }
+	        else{
+	            float x = (float)(front - rear)/(float)front * CORRECTION_FACTOR;
+	            if(1 - x < 0) {
+	                x = 1;
+	            }
 
-		set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (int)((1-x) * BASE_MOTOR_SPEED));
-		set_motor_speed(&controllers[REAR_LEFT_MOTOR], (int)((1-x) * BASE_MOTOR_SPEED));
-	}
+	            set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
+	            set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
+
+	            set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (int)((1-x) * BASE_MOTOR_SPEED));
+	            set_motor_speed(&controllers[REAR_LEFT_MOTOR], (int)((1-x) * BASE_MOTOR_SPEED));
+	        }
+	    }
 
 	if (rear > front) {
-		float x = (float)(rear - front)/(float)rear * CORRECTION_FACTOR;
-		if(1 - x < 0) {
-			x = 1;
-		}
+	        if(front > (course_sections[cur_course_sec].side_dist_mm + 15)){}
+	        else if(front < (course_sections[cur_course_sec].side_dist_mm - 15)){
+	            float x = 0.5;
+	            set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (int)((1-x) * BASE_MOTOR_SPEED));
+	            set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (int)((1-x)* BASE_MOTOR_SPEED));
 
-		set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (int)((1-x) * BASE_MOTOR_SPEED));
-		set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (int)((1-x)* BASE_MOTOR_SPEED));
+	            set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
+	            set_motor_speed(&controllers[REAR_LEFT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
+	        }
+	        else{
+	            float x = (float)(rear - front)/(float)rear * CORRECTION_FACTOR;
+	            if(1 - x < 0) {
+	                x = 1;
+	            }
 
-		set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
-		set_motor_speed(&controllers[REAR_LEFT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
+	            set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (int)((1-x) * BASE_MOTOR_SPEED));
+	            set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (int)((1-x)* BASE_MOTOR_SPEED));
+
+	            set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
+	            set_motor_speed(&controllers[REAR_LEFT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
+	        }
+	    }
+
 	}
-	*/
-}
 
 int getTofStatus(TofSensor sensor) {
 	return tof_status.data_ready[sensor];
