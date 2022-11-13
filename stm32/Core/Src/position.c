@@ -173,7 +173,7 @@ VL53L0X_Error get_tof_rangedata_cts(TofSensor sensor, uint16_t *range) {
 
 // Check if the forward-facing ToF sensor detects a wall and turn 90 degrees to the right if so.
 // This is a blocking call.
-void detect_wall_and_turn(void) {
+void detect_wall_and_turn(MotorController controllers[]) {
 
 	uint16_t range = 0;
 	VL53L0X_Error err = get_tof_rangedata_cts(FORWARD_TOF, &range);
@@ -200,7 +200,17 @@ void detect_wall_and_turn(void) {
 		while(1);
 	}
 	if(range < course_sections[cur_course_sec].front_stop_dist_mm) {
-		if(abs(front_tof_velocity[CC_NUM_TRACKED_MEASUREMENTS - 1] - front_tof_velocity[0]) > 400 ) {
+		if(abs(front_tof_velocity[CC_NUM_TRACKED_MEASUREMENTS - 1]) > 400 && front_tof_velocity[CC_NUM_TRACKED_MEASUREMENTS - 1] != 0){
+			// in pit
+			stop();
+			HAL_Delay(100);
+			set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], 100);
+			set_motor_speed(&controllers[REAR_RIGHT_MOTOR], 100);
+
+			set_motor_speed(&controllers[FRONT_LEFT_MOTOR], 100);
+			set_motor_speed(&controllers[REAR_LEFT_MOTOR], 100);
+
+		} else {
 //			 Execute right turn and continue on the next course section
 			cur_course_sec++;
 			if(cur_course_sec >= 11) {
@@ -209,14 +219,9 @@ void detect_wall_and_turn(void) {
 				while(1);
 			}
 			stop();
-
-			HAL_Delay(250);
-
-			printf("FRONT TOF READING AT TURN: %d, Error: %d\r\n", (int)range, (int)front_tof_position_difference);
-			printf("FRONT TOF slope AT TURN: %d \r\n", (int) slope);
 			turn_right();
 
-			HAL_Delay(250);
+			HAL_Delay(100);
 		}
 
 		move_forward(BASE_MOTOR_SPEED);
@@ -286,8 +291,8 @@ void course_correction(MotorController controllers[]) {
 
 
 	if (front > rear) {
-	        if(rear < (course_sections[cur_course_sec].side_dist_mm - 15)){}
-	        else if(rear > (course_sections[cur_course_sec].side_dist_mm + 15)){
+	        if(rear - course_sections[cur_course_sec].side_dist_mm < (-15)){}
+	        else if(rear - course_sections[cur_course_sec].side_dist_mm > (15)){
 	            float x = 0.5;
 	            set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
 	            set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (int)((1+x)* BASE_MOTOR_SPEED));
@@ -310,8 +315,8 @@ void course_correction(MotorController controllers[]) {
 	    }
 
 	if (rear > front) {
-	        if(front > (course_sections[cur_course_sec].side_dist_mm + 15)){}
-	        else if(front < (course_sections[cur_course_sec].side_dist_mm - 15)){
+	        if(front - course_sections[cur_course_sec].side_dist_mm > 15){}
+	        else if(front - course_sections[cur_course_sec].side_dist_mm < - 15){
 	            float x = 0.5;
 	            set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (int)((1-x) * BASE_MOTOR_SPEED));
 	            set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (int)((1-x)* BASE_MOTOR_SPEED));
