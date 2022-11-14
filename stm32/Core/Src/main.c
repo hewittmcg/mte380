@@ -29,6 +29,7 @@
 #include "constants.h"
 #include <stdio.h>
 #include "stm32f4xx_hal_gpio.h"
+#include "ICM20948.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -133,37 +134,37 @@ static void MX_TIM8_Init(void);
   */
 int main(void)
 {
-	/* USER CODE BEGIN 1 */
+  /* USER CODE BEGIN 1 */
 	
-	/* USER CODE END 1 */
+  /* USER CODE END 1 */
 
-	/* MCU Configuration--------------------------------------------------------*/
+  /* MCU Configuration--------------------------------------------------------*/
 
-	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-	HAL_Init();
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  HAL_Init();
 
-	/* USER CODE BEGIN Init */
+  /* USER CODE BEGIN Init */
 
-	/* USER CODE END Init */
+  /* USER CODE END Init */
 
-	/* Configure the system clock */
-	SystemClock_Config();
+  /* Configure the system clock */
+  SystemClock_Config();
 
-	/* USER CODE BEGIN SysInit */
+  /* USER CODE BEGIN SysInit */
 
-	/* USER CODE END SysInit */
+  /* USER CODE END SysInit */
 
-	/* Initialize all configured peripherals */
-	MX_GPIO_Init();
-	MX_USART2_UART_Init();
-	MX_FMPI2C1_Init();
-	MX_I2C1_Init();
-	MX_I2C2_Init();
-	MX_I2C3_Init();
-	MX_SPI2_Init();
-	MX_TIM1_Init();
-	MX_TIM8_Init();
-	/* USER CODE BEGIN 2 */
+  /* Initialize all configured peripherals */
+  MX_GPIO_Init();
+  MX_USART2_UART_Init();
+  MX_FMPI2C1_Init();
+  MX_I2C1_Init();
+  MX_I2C2_Init();
+  MX_I2C3_Init();
+  MX_SPI2_Init();
+  MX_TIM1_Init();
+  MX_TIM8_Init();
+  /* USER CODE BEGIN 2 */
 
 	// Initialize ToF sensors
 	TOF_Init(&hi2c1, FRONT_SIDE_TOF);
@@ -171,10 +172,20 @@ int main(void)
 	TOF_Init(&hi2c3, FORWARD_TOF);
 
 	movement_init(controllers);
-	/* USER CODE END 2 */
+  /* USER CODE END 2 */
 
-	/* Infinite loop */
-	/* USER CODE BEGIN WHILE */
+  /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
+	// IMU testing
+	ICM_SelectBank(USER_BANK_0);
+	HAL_Delay(10);
+	ICM_PowerOn();
+	HAL_Delay(10);
+	while(1) {
+		int16_t mag_data[3];
+		ICM_ReadMag(mag_data);
+		asm("nop");
+	}
 	while (1)
 	{
 		// Wait for button press before starting to move.
@@ -199,11 +210,11 @@ int main(void)
 		stop();
 		HAL_Delay(1000);
 
-	/* USER CODE END WHILE */
+    /* USER CODE END WHILE */
 
-	/* USER CODE BEGIN 3 */
+    /* USER CODE BEGIN 3 */
 	}
-	/* USER CODE END 3 */
+  /* USER CODE END 3 */
 }
 
 /**
@@ -635,7 +646,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1|LD2_Pin|GPIO_PIN_15, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1|ICM_CS_Pin|LD2_Pin|GPIO_PIN_15, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14|GPIO_PIN_15|GPIO_PIN_4|GPIO_PIN_5, GPIO_PIN_RESET);
@@ -649,8 +660,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(Pushbutton_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PA1 LD2_Pin PA15 */
-  GPIO_InitStruct.Pin = GPIO_PIN_1|LD2_Pin|GPIO_PIN_15;
+  /*Configure GPIO pins : PA1 ICM_CS_Pin LD2_Pin PA15 */
+  GPIO_InitStruct.Pin = GPIO_PIN_1|ICM_CS_Pin|LD2_Pin|GPIO_PIN_15;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;

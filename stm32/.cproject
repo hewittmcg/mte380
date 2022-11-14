@@ -57,11 +57,7 @@
                                 								
                                 <option id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.assembler.option.debuglevel.505551665" name="Debug level" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.assembler.option.debuglevel" value="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.assembler.option.debuglevel.value.g3" valueType="enumerated"/>
                                 								
-                                <option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.assembler.option.includepaths.163590206" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.assembler.option.includepaths" valueType="includePath">
-                                    									
-                                    <listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/Drivers/ICM20948}&quot;"/>
-                                    								
-                                </option>
+                                <option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="true" id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.assembler.option.includepaths.163590206" name="Include paths (-I)" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.assembler.option.includepaths" valueType="includePath"/>
                                 								
                                 <inputType id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.assembler.input.1356460378" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.assembler.input"/>
                                 							
@@ -94,8 +90,6 @@
                                     <listOptionValue builtIn="false" value="../Drivers/CMSIS/Device/ST/STM32F4xx/Include"/>
                                     									
                                     <listOptionValue builtIn="false" value="../Drivers/CMSIS/Include"/>
-                                    									
-                                    <listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/Drivers/ICM20948}&quot;"/>
                                     								
                                 </option>
                                 								
@@ -166,6 +160,8 @@
                                 <listOptionValue builtIn="false" value="&quot;${workspace_loc:/Drivers/VL53L0X/core/inc/}&quot;"/>
                                 								
                                 <listOptionValue builtIn="false" value="&quot;${workspace_loc:/Drivers/VL53L0X/platform/inc/}&quot;"/>
+                                								
+                                <listOptionValue builtIn="false" value="&quot;${workspace_loc:/Drivers/ICM20948/inc}&quot;"/>
                                 							
                             </option>
                             							
@@ -194,6 +190,8 @@
                                 <listOptionValue builtIn="false" value="&quot;${workspace_loc:/murphy/Drivers/VL53L0X/core/inc}&quot;"/>
                                 								
                                 <listOptionValue builtIn="false" value="&quot;${workspace_loc:/murphy/Drivers/VL53L0X/platform/inc}&quot;"/>
+                                								
+                                <listOptionValue builtIn="false" value="&quot;${workspace_loc:/murphy/Drivers/ICM20948/inc}&quot;"/>
                                 							
                             </option>
                             							
@@ -222,6 +220,8 @@
                                 <listOptionValue builtIn="false" value="../Drivers/VL53L0X/platform/inc"/>
                                 								
                                 <listOptionValue builtIn="false" value="../Drivers/VL53l0X/core/inc"/>
+                                								
+                                <listOptionValue builtIn="false" value="../Drivers/ICM20948/inc"/>
                                 							
                             </option>
                             							
@@ -301,11 +301,7 @@
                                 								
                                 <option id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.assembler.option.debuglevel.1098206945" name="Debug level" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.assembler.option.debuglevel" value="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.assembler.option.debuglevel.value.g0" valueType="enumerated"/>
                                 								
-                                <option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.assembler.option.includepaths.1179068251" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.assembler.option.includepaths" valueType="includePath">
-                                    									
-                                    <listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/Drivers/ICM20948}&quot;"/>
-                                    								
-                                </option>
+                                <option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="true" id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.assembler.option.includepaths.1179068251" name="Include paths (-I)" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.assembler.option.includepaths" valueType="includePath"/>
                                 								
                                 <inputType id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.assembler.input.1158650460" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.assembler.input"/>
                                 							
@@ -336,8 +332,6 @@
                                     <listOptionValue builtIn="false" value="../Drivers/CMSIS/Device/ST/STM32F4xx/Include"/>
                                     									
                                     <listOptionValue builtIn="false" value="../Drivers/CMSIS/Include"/>
-                                    									
-                                    <listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/Drivers/ICM20948}&quot;"/>
                                     								
                                 </option>
                                 								

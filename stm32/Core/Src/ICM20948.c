@@ -11,7 +11,6 @@
 #include <string.h>
 
 
-
 /*
  *
  * SPI abstraction

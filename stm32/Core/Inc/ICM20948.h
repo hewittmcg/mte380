@@ -12,7 +12,7 @@ uint16_t accel_data[3];
 uint16_t gyro_data[3];
 int16_t mag_data[3];
 
-#define SPI_BUS			(&hspi1) // ***
+#define SPI_BUS			(&hspi2) // ***
 #define UART_BUS		(&huart3) // ***
 
 #define USER_BANK_SEL	(0x7F)
