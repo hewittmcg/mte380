@@ -1,9 +1,12 @@
 /*
- * ICM20948.h
- *
- *  Created on: Oct 26, 2018
- *      Author: cory
- */
+* icm20948.h
+*
+*  Created on: Dec 26, 2020
+*      Author: mokhwasomssi
+*/
+
+// Refer to https://github.com/mokhwasomssi/stm32_hal_icm20948 for the source code
+// for this driver.
 
 #ifndef ICM20948_H_
 #define ICM20948_H_
