@@ -172,18 +172,20 @@ int main(void)
 	TOF_Init(&hi2c3, FORWARD_TOF);
 
 	movement_init(controllers);
+
+	// Initialize IMU
+	icm20948_init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 	// IMU testing
-	ICM_SelectBank(USER_BANK_0);
-	HAL_Delay(10);
-	ICM_PowerOn();
-	HAL_Delay(10);
+	axises my_gyro;
+	axises my_accel;
+
 	while(1) {
-		int16_t mag_data[3];
-		ICM_ReadMag(mag_data);
+		icm20948_gyro_read_dps(&my_gyro);
+		icm20948_accel_read_g(&my_accel);
 		asm("nop");
 	}
 	while (1)
@@ -431,10 +433,10 @@ static void MX_SPI2_Init(void)
   hspi2.Init.Mode = SPI_MODE_MASTER;
   hspi2.Init.Direction = SPI_DIRECTION_2LINES;
   hspi2.Init.DataSize = SPI_DATASIZE_8BIT;
-  hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
-  hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi2.Init.CLKPolarity = SPI_POLARITY_HIGH;
+  hspi2.Init.CLKPhase = SPI_PHASE_2EDGE;
   hspi2.Init.NSS = SPI_NSS_SOFT;
-  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
   hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -646,7 +648,10 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1|ICM_CS_Pin|LD2_Pin|GPIO_PIN_15, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1|LD2_Pin|GPIO_PIN_15, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(ICM_CS_GPIO_Port, ICM_CS_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14|GPIO_PIN_15|GPIO_PIN_4|GPIO_PIN_5, GPIO_PIN_RESET);
@@ -660,12 +665,19 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(Pushbutton_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PA1 ICM_CS_Pin LD2_Pin PA15 */
-  GPIO_InitStruct.Pin = GPIO_PIN_1|ICM_CS_Pin|LD2_Pin|GPIO_PIN_15;
+  /*Configure GPIO pins : PA1 LD2_Pin PA15 */
+  GPIO_InitStruct.Pin = GPIO_PIN_1|LD2_Pin|GPIO_PIN_15;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : ICM_CS_Pin */
+  GPIO_InitStruct.Pin = ICM_CS_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(ICM_CS_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : FR_TOF_EXTI_Pin */
   GPIO_InitStruct.Pin = FR_TOF_EXTI_Pin;

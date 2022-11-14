@@ -1,263 +1,520 @@
 /*
- * ICM20948.c
- *
- *  Created on: Oct 26, 2018
- *      Author: cory
- */
-
-// *** Three asterisks to the side of a line means this may change based on platform
-#include "main.h" // ***
-#include "ICM20948.h"
-#include <string.h>
+* icm20948.c
+*
+*  Created on: Dec 26, 2020
+*      Author: mokhwasomssi
+*/
 
 
-/*
- *
- * SPI abstraction
- *
- */
-void ICM_readBytes(uint8_t reg, uint8_t *pData, uint16_t Size) // ***
+#include "icm20948.h"
+#include "main.h"
+
+
+static float gyro_scale_factor;
+static float accel_scale_factor;
+
+
+/* Static Functions */
+static void     cs_high();
+static void     cs_low();
+
+static void     select_user_bank(userbank ub);
+
+static uint8_t  read_single_icm20948_reg(userbank ub, uint8_t reg);
+static void     write_single_icm20948_reg(userbank ub, uint8_t reg, uint8_t val);
+static uint8_t* read_multiple_icm20948_reg(userbank ub, uint8_t reg, uint8_t len);
+static void     write_multiple_icm20948_reg(userbank ub, uint8_t reg, uint8_t* val, uint8_t len);
+
+static uint8_t  read_single_ak09916_reg(uint8_t reg);
+static void     write_single_ak09916_reg(uint8_t reg, uint8_t val);
+static uint8_t* read_multiple_ak09916_reg(uint8_t reg, uint8_t len);
+
+
+/* Main Functions */
+void icm20948_init()
 {
-	reg = reg | 0x80;
-	HAL_GPIO_WritePin(ICM_CS_GPIO_Port, ICM_CS_Pin, GPIO_PIN_RESET);
-	HAL_SPI_Transmit_DMA(SPI_BUS, &reg, 1);
-	HAL_SPI_Receive_DMA(SPI_BUS, pData, Size);
-	HAL_GPIO_WritePin(ICM_CS_GPIO_Port, ICM_CS_Pin, GPIO_PIN_SET);
+	while(!icm20948_who_am_i());
+
+	icm20948_device_reset();
+	icm20948_wakeup();
+
+	icm20948_clock_source(1);
+	icm20948_odr_align_enable();
+
+	icm20948_spi_slave_enable();
+
+	icm20948_gyro_low_pass_filter(0);
+	icm20948_accel_low_pass_filter(0);
+
+	icm20948_gyro_sample_rate_divider(0);
+	icm20948_accel_sample_rate_divider(0);
+
+	icm20948_gyro_calibration();
+	icm20948_accel_calibration();
+
+	icm20948_gyro_full_scale_select(_2000dps);
+	icm20948_accel_full_scale_select(_16g);
 }
 
-void ICM_WriteBytes(uint8_t reg, uint8_t *pData, uint16_t Size) // ***
+void ak09916_init()
 {
-	reg = reg & 0x7F;
-	HAL_GPIO_WritePin(ICM_CS_GPIO_Port, ICM_CS_Pin, GPIO_PIN_RESET);
-	HAL_SPI_Transmit_DMA(SPI_BUS, &reg, 1);
-	HAL_SPI_Transmit_DMA(SPI_BUS, pData, Size);
-	HAL_GPIO_WritePin(ICM_CS_GPIO_Port, ICM_CS_Pin, GPIO_PIN_SET);
+	icm20948_i2c_master_reset();
+	icm20948_i2c_master_enable();
+	icm20948_i2c_master_clk_frq(7);
 
+	while(!ak09916_who_am_i());
+
+	ak09916_soft_reset();
+	ak09916_operation_mode_setting(continuous_measurement_100hz);
 }
 
-void ICM_ReadOneByte(uint8_t reg, uint8_t* pData) // ***
+void icm20948_gyro_read(axises* data)
 {
-	reg = reg | 0x80;
-	HAL_GPIO_WritePin(ICM_CS_GPIO_Port, ICM_CS_Pin, GPIO_PIN_RESET);
-	HAL_SPI_Transmit_DMA(SPI_BUS, &reg, 1);
-	while (HAL_SPI_GetState(SPI_BUS) != HAL_SPI_STATE_READY)
-		;
-	HAL_SPI_Receive_DMA(SPI_BUS, pData, 1);
-	while (HAL_SPI_GetState(SPI_BUS) != HAL_SPI_STATE_READY)
-		;
-	HAL_GPIO_WritePin(ICM_CS_GPIO_Port, ICM_CS_Pin, GPIO_PIN_SET);
+	uint8_t* temp = read_multiple_icm20948_reg(ub_0, B0_GYRO_XOUT_H, 6);
+
+	data->x = (int16_t)(temp[0] << 8 | temp[1]);
+	data->y = (int16_t)(temp[2] << 8 | temp[3]);
+	data->z = (int16_t)(temp[4] << 8 | temp[5]);
 }
 
-void ICM_WriteOneByte(uint8_t reg, uint8_t Data) // ***
+void icm20948_accel_read(axises* data)
 {
-	reg = reg & 0x7F;
-	HAL_GPIO_WritePin(ICM_CS_GPIO_Port, ICM_CS_Pin, GPIO_PIN_RESET);
-	HAL_SPI_Transmit_DMA(SPI_BUS, &reg, 1);
-	HAL_SPI_Transmit_DMA(SPI_BUS, &Data, 1);
-	HAL_GPIO_WritePin(ICM_CS_GPIO_Port, ICM_CS_Pin, GPIO_PIN_SET);
+	uint8_t* temp = read_multiple_icm20948_reg(ub_0, B0_ACCEL_XOUT_H, 6);
+
+	data->x = (int16_t)(temp[0] << 8 | temp[1]);
+	data->y = (int16_t)(temp[2] << 8 | temp[3]);
+	data->z = (int16_t)(temp[4] << 8 | temp[5]) + accel_scale_factor;
+	// Add scale factor because calibraiton function offset gravity acceleration.
 }
 
-/*
- *
- * AUX I2C abstraction for magnetometer
- *
- */
-void i2c_Mag_write(uint8_t reg,uint8_t value)
-  {
-  	ICM_WriteOneByte(0x7F, 0x30);
+bool ak09916_mag_read(axises* data)
+{
+	uint8_t* temp;
+	uint8_t drdy, hofl;	// data ready, overflow
 
-  	HAL_Delay(1);
-  	ICM_WriteOneByte(0x03 ,0x0C);//mode: write
+	drdy = read_single_ak09916_reg(MAG_ST1) & 0x01;
+	if(!drdy)	return false;
 
-  	HAL_Delay(1);
-  	ICM_WriteOneByte(0x04 ,reg);//set reg addr
+	temp = read_multiple_ak09916_reg(MAG_HXL, 6);
 
-  	HAL_Delay(1);
-  	ICM_WriteOneByte(0x06 ,value);//send value
+	hofl = read_single_ak09916_reg(MAG_ST2) & 0x08;
+	if(hofl)	return false;
 
-  	HAL_Delay(1);
-  }
+	data->x = (int16_t)(temp[1] << 8 | temp[0]);
+	data->y = (int16_t)(temp[3] << 8 | temp[2]);
+	data->z = (int16_t)(temp[5] << 8 | temp[4]);
 
-  static uint8_t ICM_Mag_Read(uint8_t reg)
-  {
-  	uint8_t  Data;
-  	ICM_WriteOneByte(0x7F, 0x30);
-    HAL_Delay(1);
-  	ICM_WriteOneByte(0x03 ,0x0C|0x80);
-    HAL_Delay(1);
-  	ICM_WriteOneByte(0x04 ,reg);// set reg addr
-    HAL_Delay(1);
-  	ICM_WriteOneByte(0x06 ,0xff);//read
-  	HAL_Delay(1);
-  	ICM_WriteOneByte(0x7F, 0x00);
-  	ICM_ReadOneByte(0x3B,&Data);
-    HAL_Delay(1);
-  	return Data;
-  }
-
-  void ICM20948_READ_MAG(int16_t magn[3])
-  {
-    uint8_t mag_buffer[10];
-
-      mag_buffer[0] =ICM_Mag_Read(0x01);
-
-      mag_buffer[1] =ICM_Mag_Read(0x11);
-  	  mag_buffer[2] =ICM_Mag_Read(0x12);
-  	  magn[0]=mag_buffer[1]|mag_buffer[2]<<8;
-    	mag_buffer[3] =ICM_Mag_Read(0x13);
-      mag_buffer[4] =ICM_Mag_Read(0x14);
-    	magn[1]=mag_buffer[3]|mag_buffer[4]<<8;
-  	 	mag_buffer[5] =ICM_Mag_Read(0x15);
-      mag_buffer[6] =ICM_Mag_Read(0x16);
-  		magn[2]=mag_buffer[5]|mag_buffer[6]<<8;
-
-     	i2c_Mag_write(0x31,0x01);
-  }
-
-/*
- *
- * Read magnetometer
- *
- */
-void ICM_ReadMag(int16_t magn[3]) {
-	uint8_t mag_buffer[10];
-
-	      mag_buffer[0] =ICM_Mag_Read(0x01);
-
-	      mag_buffer[1] =ICM_Mag_Read(0x11);
-	  	  mag_buffer[2] =ICM_Mag_Read(0x12);
-	  	  magn[0]=mag_buffer[1]|mag_buffer[2]<<8;
-	    	mag_buffer[3] =ICM_Mag_Read(0x13);
-	      mag_buffer[4] =ICM_Mag_Read(0x14);
-	    	magn[1]=mag_buffer[3]|mag_buffer[4]<<8;
-	  	 	mag_buffer[5] =ICM_Mag_Read(0x15);
-	      mag_buffer[6] =ICM_Mag_Read(0x16);
-	  		magn[2]=mag_buffer[5]|mag_buffer[6]<<8;
-
-	     	i2c_Mag_write(0x31,0x01);
+	return true;
 }
 
-/*
- *
- * Sequence to setup ICM290948 as early as possible after power on
- *
- */
-void ICM_PowerOn(void) {
-	char uart_buffer[200];
-	uint8_t whoami = 0xEA;
-	uint8_t test = ICM_WHOAMI();
-	//if (test == whoami) {
-		ICM_CSHigh();
-		HAL_Delay(10);
-		ICM_SelectBank(USER_BANK_0);
-		HAL_Delay(10);
-		ICM_Disable_I2C();
-		HAL_Delay(10);
-		ICM_SetClock((uint8_t)CLK_BEST_AVAIL);
-		HAL_Delay(10);
-		ICM_AccelGyroOff();
-		HAL_Delay(20);
-		ICM_AccelGyroOn();
-		HAL_Delay(10);
-		ICM_Initialize();
-	//} else {
-		//sprintf(uart_buffer, "Failed WHO_AM_I.  %i is not 0xEA\r\n", test);
-		//HAL_UART_Transmit_DMA(UART_BUS, (uint8_t*) uart_buffer, strlen(uart_buffer));
-		//HAL_Delay(100);
-	//}
+void icm20948_gyro_read_dps(axises* data)
+{
+	icm20948_gyro_read(data);
+
+	data->x /= gyro_scale_factor;
+	data->y /= gyro_scale_factor;
+	data->z /= gyro_scale_factor;
 }
-uint16_t ICM_Initialize(void) {
-		ICM_SelectBank(USER_BANK_2);
-		HAL_Delay(20);
-		ICM_SetGyroRateLPF(GYRO_RATE_250, GYRO_LPF_17HZ);
-		HAL_Delay(10);
 
-		// Set gyroscope sample rate to 100hz (0x0A) in GYRO_SMPLRT_DIV register (0x00)
-		ICM_WriteOneByte(0x00, 0x0A);
-		HAL_Delay(10);
+void icm20948_accel_read_g(axises* data)
+{
+	icm20948_accel_read(data);
 
-		// Set accelerometer low pass filter to 136hz (0x11) and the rate to 8G (0x04) in register ACCEL_CONFIG (0x14)
-		ICM_WriteOneByte(0x14, (0x04 | 0x11));
+	data->x /= accel_scale_factor;
+	data->y /= accel_scale_factor;
+	data->z /= accel_scale_factor;
+}
 
-		// Set accelerometer sample rate to 225hz (0x00) in ACCEL_SMPLRT_DIV_1 register (0x10)
-		ICM_WriteOneByte(0x10, 0x00);
-		HAL_Delay(10);
+bool ak09916_mag_read_uT(axises* data)
+{
+	axises temp;
+	bool new_data = ak09916_mag_read(&temp);
+	if(!new_data)	return false;
 
-		// Set accelerometer sample rate to 100 hz (0x0A) in ACCEL_SMPLRT_DIV_2 register (0x11)
-		ICM_WriteOneByte(0x11, 0x0A);
-		HAL_Delay(10);
+	data->x = (float)(temp.x * 0.15);
+	data->y = (float)(temp.y * 0.15);
+	data->z = (float)(temp.z * 0.15);
 
-		ICM_SelectBank(USER_BANK_2);
-		HAL_Delay(20);
+	return true;
+}
 
-		// Configure AUX_I2C Magnetometer (onboard ICM-20948)
-		ICM_WriteOneByte(0x7F, 0x00); // Select user bank 0
-		ICM_WriteOneByte(0x0F, 0x30); // INT Pin / Bypass Enable Configuration
-		ICM_WriteOneByte(0x03, 0x20); // I2C_MST_EN
-		ICM_WriteOneByte(0x7F, 0x30); // Select user bank 3
-		ICM_WriteOneByte(0x01, 0x4D); // I2C Master mode and Speed 400 kHz
-		ICM_WriteOneByte(0x02, 0x01); // I2C_SLV0 _DLY_ enable
-		ICM_WriteOneByte(0x05, 0x81); // enable IIC	and EXT_SENS_DATA==1 Byte
 
-		// Initialize magnetometer
-		i2c_Mag_write(0x32, 0x01); // Reset AK8963
-		HAL_Delay(1000);
-		i2c_Mag_write(0x31, 0x02); // use i2c to set AK8963 working on Continuous measurement mode1 & 16-bit output
+/* Sub Functions */
+bool icm20948_who_am_i()
+{
+	uint8_t icm20948_id = read_single_icm20948_reg(ub_0, B0_WHO_AM_I);
 
-		return 1337;
+	if(icm20948_id == ICM20948_ID)
+		return true;
+	else
+		return false;
+}
+
+bool ak09916_who_am_i()
+{
+	uint8_t ak09916_id = read_single_ak09916_reg(MAG_WIA2);
+
+	if(ak09916_id == AK09916_ID)
+		return true;
+	else
+		return false;
+}
+
+void icm20948_device_reset()
+{
+	write_single_icm20948_reg(ub_0, B0_PWR_MGMT_1, 0x80 | 0x41);
+	HAL_Delay(100);
+}
+
+void ak09916_soft_reset()
+{
+	write_single_ak09916_reg(MAG_CNTL3, 0x01);
+	HAL_Delay(100);
+}
+
+void icm20948_wakeup()
+{
+	uint8_t new_val = read_single_icm20948_reg(ub_0, B0_PWR_MGMT_1);
+	new_val &= 0xBF;
+
+	write_single_icm20948_reg(ub_0, B0_PWR_MGMT_1, new_val);
+	HAL_Delay(100);
+}
+
+void icm20948_sleep()
+{
+	uint8_t new_val = read_single_icm20948_reg(ub_0, B0_PWR_MGMT_1);
+	new_val |= 0x40;
+
+	write_single_icm20948_reg(ub_0, B0_PWR_MGMT_1, new_val);
+	HAL_Delay(100);
+}
+
+void icm20948_spi_slave_enable()
+{
+	uint8_t new_val = read_single_icm20948_reg(ub_0, B0_USER_CTRL);
+	new_val |= 0x10;
+
+	write_single_icm20948_reg(ub_0, B0_USER_CTRL, new_val);
+}
+
+void icm20948_i2c_master_reset()
+{
+	uint8_t new_val = read_single_icm20948_reg(ub_0, B0_USER_CTRL);
+	new_val |= 0x02;
+
+	write_single_icm20948_reg(ub_0, B0_USER_CTRL, new_val);
+}
+
+void icm20948_i2c_master_enable()
+{
+	uint8_t new_val = read_single_icm20948_reg(ub_0, B0_USER_CTRL);
+	new_val |= 0x20;
+
+	write_single_icm20948_reg(ub_0, B0_USER_CTRL, new_val);
+	HAL_Delay(100);
+}
+
+void icm20948_i2c_master_clk_frq(uint8_t config)
+{
+	uint8_t new_val = read_single_icm20948_reg(ub_3, B3_I2C_MST_CTRL);
+	new_val |= config;
+
+	write_single_icm20948_reg(ub_3, B3_I2C_MST_CTRL, new_val);
+}
+
+void icm20948_clock_source(uint8_t source)
+{
+	uint8_t new_val = read_single_icm20948_reg(ub_0, B0_PWR_MGMT_1);
+	new_val |= source;
+
+	write_single_icm20948_reg(ub_0, B0_PWR_MGMT_1, new_val);
+}
+
+void icm20948_odr_align_enable()
+{
+	write_single_icm20948_reg(ub_2, B2_ODR_ALIGN_EN, 0x01);
+}
+
+void icm20948_gyro_low_pass_filter(uint8_t config)
+{
+	uint8_t new_val = read_single_icm20948_reg(ub_2, B2_GYRO_CONFIG_1);
+	new_val |= config << 3;
+
+	write_single_icm20948_reg(ub_2, B2_GYRO_CONFIG_1, new_val);
+}
+
+void icm20948_accel_low_pass_filter(uint8_t config)
+{
+	uint8_t new_val = read_single_icm20948_reg(ub_2, B2_ACCEL_CONFIG);
+	new_val |= config << 3;
+
+	write_single_icm20948_reg(ub_2, B2_GYRO_CONFIG_1, new_val);
+}
+
+void icm20948_gyro_sample_rate_divider(uint8_t divider)
+{
+	write_single_icm20948_reg(ub_2, B2_GYRO_SMPLRT_DIV, divider);
+}
+
+void icm20948_accel_sample_rate_divider(uint16_t divider)
+{
+	uint8_t divider_1 = (uint8_t)(divider >> 8);
+	uint8_t divider_2 = (uint8_t)(0x0F & divider);
+
+	write_single_icm20948_reg(ub_2, B2_ACCEL_SMPLRT_DIV_1, divider_1);
+	write_single_icm20948_reg(ub_2, B2_ACCEL_SMPLRT_DIV_2, divider_2);
+}
+
+void ak09916_operation_mode_setting(operation_mode mode)
+{
+	write_single_ak09916_reg(MAG_CNTL2, mode);
+	HAL_Delay(100);
+}
+
+void icm20948_gyro_calibration()
+{
+	axises temp;
+	int32_t gyro_bias[3] = {0};
+	uint8_t gyro_offset[6] = {0};
+
+	for(int i = 0; i < 100; i++)
+	{
+		icm20948_gyro_read(&temp);
+		gyro_bias[0] += temp.x;
+		gyro_bias[1] += temp.y;
+		gyro_bias[2] += temp.z;
 	}
 
-void ICM_ReadAccelGyro(void) {
-	uint8_t raw_data[12];
-	ICM_readBytes(0x2D, raw_data, 12);
+	gyro_bias[0] /= 100;
+	gyro_bias[1] /= 100;
+	gyro_bias[2] /= 100;
 
-	accel_data[0] = (raw_data[0] << 8) | raw_data[1];
-	accel_data[1] = (raw_data[2] << 8) | raw_data[3];
-	accel_data[2] = (raw_data[4] << 8) | raw_data[5];
+	// Construct the gyro biases for push to the hardware gyro bias registers,
+	// which are reset to zero upon device startup.
+	// Divide by 4 to get 32.9 LSB per deg/s to conform to expected bias input format.
+	// Biases are additive, so change sign on calculated average gyro biases
+	gyro_offset[0] = (-gyro_bias[0] / 4  >> 8) & 0xFF;
+	gyro_offset[1] = (-gyro_bias[0] / 4)       & 0xFF;
+	gyro_offset[2] = (-gyro_bias[1] / 4  >> 8) & 0xFF;
+	gyro_offset[3] = (-gyro_bias[1] / 4)       & 0xFF;
+	gyro_offset[4] = (-gyro_bias[2] / 4  >> 8) & 0xFF;
+	gyro_offset[5] = (-gyro_bias[2] / 4)       & 0xFF;
 
-	gyro_data[0] = (raw_data[6] << 8) | raw_data[7];
-	gyro_data[1] = (raw_data[8] << 8) | raw_data[9];
-	gyro_data[2] = (raw_data[10] << 8) | raw_data[11];
+	write_multiple_icm20948_reg(ub_2, B2_XG_OFFS_USRH, gyro_offset, 6);
+}
 
-	accel_data[0] = accel_data[0] / 8;
-	accel_data[1] = accel_data[1] / 8;
-	accel_data[2] = accel_data[2] / 8;
+void icm20948_accel_calibration()
+{
+	axises temp;
+	uint8_t* temp2;
+	uint8_t* temp3;
+	uint8_t* temp4;
 
-	gyro_data[0] = gyro_data[0] / 250;
-	gyro_data[1] = gyro_data[1] / 250;
-	gyro_data[2] = gyro_data[2] / 250;
+	int32_t accel_bias[3] = {0};
+	int32_t accel_bias_reg[3] = {0};
+	uint8_t accel_offset[6] = {0};
+
+	for(int i = 0; i < 100; i++)
+	{
+		icm20948_accel_read(&temp);
+		accel_bias[0] += temp.x;
+		accel_bias[1] += temp.y;
+		accel_bias[2] += temp.z;
+	}
+
+	accel_bias[0] /= 100;
+	accel_bias[1] /= 100;
+	accel_bias[2] /= 100;
+
+	uint8_t mask_bit[3] = {0, 0, 0};
+
+	temp2 = read_multiple_icm20948_reg(ub_1, B1_XA_OFFS_H, 2);
+	accel_bias_reg[0] = (int32_t)(temp2[0] << 8 | temp2[1]);
+	mask_bit[0] = temp2[1] & 0x01;
+
+	temp3 = read_multiple_icm20948_reg(ub_1, B1_YA_OFFS_H, 2);
+	accel_bias_reg[1] = (int32_t)(temp3[0] << 8 | temp3[1]);
+	mask_bit[1] = temp3[1] & 0x01;
+
+	temp4 = read_multiple_icm20948_reg(ub_1, B1_ZA_OFFS_H, 2);
+	accel_bias_reg[2] = (int32_t)(temp4[0] << 8 | temp4[1]);
+	mask_bit[2] = temp4[1] & 0x01;
+
+	accel_bias_reg[0] -= (accel_bias[0] / 8);
+	accel_bias_reg[1] -= (accel_bias[1] / 8);
+	accel_bias_reg[2] -= (accel_bias[2] / 8);
+
+	accel_offset[0] = (accel_bias_reg[0] >> 8) & 0xFF;
+  	accel_offset[1] = (accel_bias_reg[0])      & 0xFE;
+	accel_offset[1] = accel_offset[1] | mask_bit[0];
+
+	accel_offset[2] = (accel_bias_reg[1] >> 8) & 0xFF;
+  	accel_offset[3] = (accel_bias_reg[1])      & 0xFE;
+	accel_offset[3] = accel_offset[3] | mask_bit[1];
+
+	accel_offset[4] = (accel_bias_reg[2] >> 8) & 0xFF;
+	accel_offset[5] = (accel_bias_reg[2])      & 0xFE;
+	accel_offset[5] = accel_offset[5] | mask_bit[2];
+
+	write_multiple_icm20948_reg(ub_1, B1_XA_OFFS_H, &accel_offset[0], 2);
+	write_multiple_icm20948_reg(ub_1, B1_YA_OFFS_H, &accel_offset[2], 2);
+	write_multiple_icm20948_reg(ub_1, B1_ZA_OFFS_H, &accel_offset[4], 2);
 }
-void ICM_SelectBank(uint8_t bank) {
-	ICM_WriteOneByte(USER_BANK_SEL, bank);
+
+void icm20948_gyro_full_scale_select(gyro_full_scale full_scale)
+{
+	uint8_t new_val = read_single_icm20948_reg(ub_2, B2_GYRO_CONFIG_1);
+
+	switch(full_scale)
+	{
+		case _250dps :
+			new_val |= 0x00;
+			gyro_scale_factor = 131.0;
+			break;
+		case _500dps :
+			new_val |= 0x02;
+			gyro_scale_factor = 65.5;
+			break;
+		case _1000dps :
+			new_val |= 0x04;
+			gyro_scale_factor = 32.8;
+			break;
+		case _2000dps :
+			new_val |= 0x06;
+			gyro_scale_factor = 16.4;
+			break;
+	}
+
+	write_single_icm20948_reg(ub_2, B2_GYRO_CONFIG_1, new_val);
 }
-void ICM_Disable_I2C(void) {
-	ICM_WriteOneByte(0x03, 0x78);
+
+void icm20948_accel_full_scale_select(accel_full_scale full_scale)
+{
+	uint8_t new_val = read_single_icm20948_reg(ub_2, B2_ACCEL_CONFIG);
+
+	switch(full_scale)
+	{
+		case _2g :
+			new_val |= 0x00;
+			accel_scale_factor = 16384;
+			break;
+		case _4g :
+			new_val |= 0x02;
+			accel_scale_factor = 8192;
+			break;
+		case _8g :
+			new_val |= 0x04;
+			accel_scale_factor = 4096;
+			break;
+		case _16g :
+			new_val |= 0x06;
+			accel_scale_factor = 2048;
+			break;
+	}
+
+	write_single_icm20948_reg(ub_2, B2_ACCEL_CONFIG, new_val);
 }
-void ICM_CSHigh(void) {
-	HAL_GPIO_WritePin(ICM_CS_GPIO_Port, ICM_CS_Pin, SET);
+
+
+/* Static Functions */
+static void cs_high()
+{
+	HAL_GPIO_WritePin(ICM20948_SPI_CS_PIN_PORT, ICM20948_SPI_CS_PIN_NUMBER, SET);
 }
-void ICM_CSLow(void) {
-	HAL_GPIO_WritePin(ICM_CS_GPIO_Port, ICM_CS_Pin, RESET);
+
+static void cs_low()
+{
+	HAL_GPIO_WritePin(ICM20948_SPI_CS_PIN_PORT, ICM20948_SPI_CS_PIN_NUMBER, RESET);
 }
-void ICM_SetClock(uint8_t clk) {
-	ICM_WriteOneByte(PWR_MGMT_1, clk);
+
+static void select_user_bank(userbank ub)
+{
+	uint8_t write_reg[2];
+	write_reg[0] = WRITE | REG_BANK_SEL;
+	write_reg[1] = ub;
+
+	cs_low();
+	HAL_SPI_Transmit(ICM20948_SPI, write_reg, 2, 10);
+	cs_high();
 }
-void ICM_AccelGyroOff(void) {
-	ICM_WriteOneByte(PWR_MGMT_2, (0x38 | 0x07));
+
+static uint8_t read_single_icm20948_reg(userbank ub, uint8_t reg)
+{
+	uint8_t read_reg = READ | reg;
+	uint8_t reg_val;
+	select_user_bank(ub);
+
+	cs_low();
+	HAL_SPI_Transmit(ICM20948_SPI, &read_reg, 1, 1000);
+	HAL_SPI_Receive(ICM20948_SPI, &reg_val, 1, 1000);
+	cs_high();
+
+	return reg_val;
 }
-void ICM_AccelGyroOn(void) {
-	ICM_WriteOneByte(0x07, (0x00 | 0x00));
+
+static void write_single_icm20948_reg(userbank ub, uint8_t reg, uint8_t val)
+{
+	uint8_t write_reg[2];
+	write_reg[0] = WRITE | reg;
+	write_reg[1] = val;
+
+	select_user_bank(ub);
+
+	cs_low();
+	HAL_SPI_Transmit(ICM20948_SPI, write_reg, 2, 1000);
+	cs_high();
 }
-uint8_t ICM_WHOAMI(void) {
-	uint8_t spiData = 0x01;
-	ICM_ReadOneByte(0x00, &spiData);
-	return spiData;
+
+static uint8_t* read_multiple_icm20948_reg(userbank ub, uint8_t reg, uint8_t len)
+{
+	uint8_t read_reg = READ | reg;
+	static uint8_t reg_val[6];
+	select_user_bank(ub);
+
+	cs_low();
+	HAL_SPI_Transmit(ICM20948_SPI, &read_reg, 1, 1000);
+	HAL_SPI_Receive(ICM20948_SPI, reg_val, len, 1000);
+	cs_high();
+
+	return reg_val;
 }
-void ICM_SetGyroRateLPF(uint8_t rate, uint8_t lpf) {
-	ICM_WriteOneByte(GYRO_CONFIG_1, (rate|lpf));
+
+static void write_multiple_icm20948_reg(userbank ub, uint8_t reg, uint8_t* val, uint8_t len)
+{
+	uint8_t write_reg = WRITE | reg;
+	select_user_bank(ub);
+
+	cs_low();
+	HAL_SPI_Transmit(ICM20948_SPI, &write_reg, 1, 1000);
+	HAL_SPI_Transmit(ICM20948_SPI, val, len, 1000);
+	cs_high();
 }
-/*
- *
- * Read Accelerometer and Gyro data
- *
- */
+
+static uint8_t read_single_ak09916_reg(uint8_t reg)
+{
+	write_single_icm20948_reg(ub_3, B3_I2C_SLV0_ADDR, READ | MAG_SLAVE_ADDR);
+	write_single_icm20948_reg(ub_3, B3_I2C_SLV0_REG, reg);
+	write_single_icm20948_reg(ub_3, B3_I2C_SLV0_CTRL, 0x81);
+
+	HAL_Delay(1);
+	return read_single_icm20948_reg(ub_0, B0_EXT_SLV_SENS_DATA_00);
+}
+
+static void write_single_ak09916_reg(uint8_t reg, uint8_t val)
+{
+	write_single_icm20948_reg(ub_3, B3_I2C_SLV0_ADDR, WRITE | MAG_SLAVE_ADDR);
+	write_single_icm20948_reg(ub_3, B3_I2C_SLV0_REG, reg);
+	write_single_icm20948_reg(ub_3, B3_I2C_SLV0_DO, val);
+	write_single_icm20948_reg(ub_3, B3_I2C_SLV0_CTRL, 0x81);
+}
+
+static uint8_t* read_multiple_ak09916_reg(uint8_t reg, uint8_t len)
+{
+	write_single_icm20948_reg(ub_3, B3_I2C_SLV0_ADDR, READ | MAG_SLAVE_ADDR);
+	write_single_icm20948_reg(ub_3, B3_I2C_SLV0_REG, reg);
+	write_single_icm20948_reg(ub_3, B3_I2C_SLV0_CTRL, 0x80 | len);
+
+	HAL_Delay(1);
+	return read_multiple_icm20948_reg(ub_0, B0_EXT_SLV_SENS_DATA_00, len);
+}
