@@ -1,5 +1,7 @@
 #include "movement.h"
 #include "constants.h"
+#include "ICM20948.h"
+#include <stdlib.h>
 
 #define ACCELERATION_INCREMENT 10
 
@@ -70,6 +72,60 @@ void turn_right() {
   HAL_Delay(RIGHT_TURN_DELAY);
 
   stop();
+}
+
+void turn_right_imu(uint16_t degrees) {
+  set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (-1)*TURNING_MOTOR_SPEED);
+  set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (-1)*TURNING_MOTOR_SPEED);
+
+  set_motor_speed(&controllers[FRONT_LEFT_MOTOR], TURNING_MOTOR_SPEED);
+  set_motor_speed(&controllers[REAR_LEFT_MOTOR], TURNING_MOTOR_SPEED);
+
+  // Read from the IMU and numerically integrate to get the number of degrees
+  axises gyro_reading;
+  float degrees_turned = 0;
+  float prev_reading = 0;
+  float prev_time = HAL_GetTick();
+  float error = degrees - degrees_turned;
+  uint32_t start_time = HAL_GetTick();
+  // Turn until the error is minimized and we have been turning for at least 1000 ms
+  // This is slow, but should be quite accurate for the time being.
+  while(abs(error) > 5 || prev_time - start_time < 1000) {
+	  // TODO: we only need to read the z value here, not all three.
+	  icm20948_gyro_read_dps(&gyro_reading);
+	  float cur_time = HAL_GetTick();
+	  if(cur_time == prev_time) continue; // Avoid divide by zero errors
+
+	  // Numerically integrate
+	  float cur_degrees = ((prev_reading + gyro_reading.z)/2) * (cur_time - prev_time) / 1000.0f;
+
+	  // Right turn seems to be positive IMU reading in the z-axis
+	  degrees_turned += cur_degrees;
+	  prev_reading = gyro_reading.z;
+	  prev_time = cur_time;
+	  error = degrees - degrees_turned;
+
+	  float x = 0;
+	  if(error > 30) {
+		  x = TURNING_MOTOR_SPEED;
+	  } else {
+		  // If we've overshot the target, turn back to it
+		  x = TURNING_MOTOR_SPEED / 2 * (error > 0 ? 1 : -1);
+	  }
+
+	  // Scale motors as we reach the reading
+	  set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (-1)*x);
+	  set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (-1)*x);
+
+	  set_motor_speed(&controllers[FRONT_LEFT_MOTOR], x);
+	  set_motor_speed(&controllers[REAR_LEFT_MOTOR], x);
+  }
+
+
+  set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], 0);
+  set_motor_speed(&controllers[REAR_RIGHT_MOTOR], 0);
+  set_motor_speed(&controllers[FRONT_LEFT_MOTOR], 0);
+  set_motor_speed(&controllers[REAR_LEFT_MOTOR], 0);
 }
 
 // Turn 90 degrees to the left.

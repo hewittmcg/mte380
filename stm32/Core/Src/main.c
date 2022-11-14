@@ -179,15 +179,6 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-	// IMU testing
-	axises my_gyro;
-	axises my_accel;
-
-	while(1) {
-		icm20948_gyro_read_dps(&my_gyro);
-		icm20948_accel_read_g(&my_accel);
-		asm("nop");
-	}
 	while (1)
 	{
 		// Wait for button press before starting to move.

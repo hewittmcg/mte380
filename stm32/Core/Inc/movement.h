@@ -23,6 +23,9 @@ void move_backward(int speed);
 // Turn the robot 90 degrees to the right.
 void turn_right();
 
+// Turn to degrees using the IMU for positioning.
+void turn_right_imu(uint16_t degrees);
+
 // Turn the robot 90 degrees to the left.
 void turn_left();
 
