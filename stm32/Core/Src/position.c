@@ -174,12 +174,11 @@ VL53L0X_Error get_tof_rangedata_cts(TofSensor sensor, uint16_t *range) {
 
 // Check if the forward-facing ToF sensor detects a wall and turn 90 degrees to the right if so.
 // This is a blocking call.
-void detect_wall_and_turn() {
-
+void detect_wall_and_turn(MotorController controllers[]) {
 	uint16_t range = 0;
 	VL53L0X_Error err = get_tof_rangedata_cts(FORWARD_TOF, &range);
 
-	printf("FRONT TOF READING: %d\r\n", (int)range);
+//	printf("FRONT TOF READING: %d\r\n", (int)range);
 	int slope = front_tof_position[CC_NUM_TRACKED_MEASUREMENTS-1] - front_tof_position[0] / (CC_NUM_TRACKED_MEASUREMENTS);
 
 	static int i = 0;
@@ -189,7 +188,7 @@ void detect_wall_and_turn() {
 			front_tof_velocity[j] = front_tof_velocity[j+1];
 		}
 		i -= 1;
-		printf("FRONT TOF RUNNING SLOPE: %d \r\n", (int) slope);
+//		printf("FRONT TOF RUNNING SLOPE: %d \r\n", (int) slope);
 	}
 	front_tof_position[i] = range;
 	front_tof_velocity[i] = slope;
@@ -200,34 +199,39 @@ void detect_wall_and_turn() {
 		stop();
 		while(1);
 	}
-	if(range < course_sections[cur_course_sec].front_stop_dist_mm) {
-		axises data;
-		icm20948_gyro_read_dps(&data);
-		if(
-			abs(front_tof_velocity[CC_NUM_TRACKED_MEASUREMENTS - 1]) > 400 
-			&& front_tof_velocity[CC_NUM_TRACKED_MEASUREMENTS - 1] != 0
-			&& data.y != 0 // not sure what the data here looks like but should check for whether we oriented down or up
-		) {
-			// in pit
-			stop();
-			HAL_Delay(100);
-			move_forward(100);
-
-		} else {
-//			 Execute right turn and continue on the next course section
-			cur_course_sec++;
-			if(cur_course_sec >= 11) {
-				cur_course_sec = 0;
-				stop();
-				while(1);
-			}
-			stop();
-			turn_right();
-
-			HAL_Delay(100);
-			move_forward(BASE_MOTOR_SPEED);
+	axises data;
+	icm20948_gyro_read_dps(&data);
+	if(data.x > 75) {
+		// in pit
+		printf("PIT DETECTED: %d /r/n", (int) data.x * 1000);
+		stop();
+		HAL_Delay(1000);
+		icm20948_accel_read_g(&data);
+		move_forward(100);
+		while (data.y > -1) {
+			course_correction(controllers);
+			icm20948_accel_read_g(&data);
 		}
+		move_forward(100);
+		icm20948_gyro_read_dps(&data);
+		while(data.x > -20) {
+			icm20948_gyro_read_dps(&data);
+		}
+	}
+	else if(range < course_sections[cur_course_sec].front_stop_dist_mm) {
+		printf("Axises Data x: %d, Axises Data y: %d, Axises Data z: %d\r\n", (int) data.x * 1000, (int) data.y * 1000, (int) data.z * 1000);
+	//			 Execute right turn and continue on the next course section
+		cur_course_sec++;
+		if(cur_course_sec >= 11) {
+			cur_course_sec = 0;
+			stop();
+			while(1);
+		}
+		stop();
+		turn_right_imu(90);
 
+		HAL_Delay(100);
+		move_forward(BASE_MOTOR_SPEED);
 	}
 }
 
