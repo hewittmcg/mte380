@@ -11,7 +11,7 @@
 
 // General course correction constants
 #define SIDE_TOF_SEPARATION_MM 177 // Distance between the two side ToF sensors. TODO revise this
-#define CC_KP 0.01f // Proportional coefficient
+#define CC_KP 0.01f // Proportional coefficient (unused)
 #define CC_KD 0.001f // Derivative coefficient (unused)
 
 // Info for a straight-line section of the course.
@@ -86,8 +86,6 @@ static TofStatus tof_status;
 static VL53L0X_Dev_t TOF_I2C[NUM_TOFS] = {0};
 static int TOF_CALIBRATION_DIST[NUM_TOFS] = {70000, 60000, 45000};
 static struct TOF_Calibration TOFs[NUM_TOFS] = {0};
-static int front_tof_position[CC_NUM_TRACKED_MEASUREMENTS] = {};
-static int front_tof_velocity[CC_NUM_TRACKED_MEASUREMENTS] = {};
 
 // Handle external interrupt from ToF sensors
 void HAL_GPIO_EXTI_Callback(uint16_t gpio_pin) {
@@ -115,14 +113,6 @@ void TOF_Init(I2C_HandleTypeDef *hi2c, TofSensor sensor){
 	VL53L0X_PerformRefCalibration(&TOF_I2C[sensor], &TOFs[sensor].VhvSettings, &TOFs[sensor].PhaseCal);
 	VL53L0X_PerformRefSpadManagement(&TOF_I2C[sensor], &TOFs[sensor].refSpadCount, &TOFs[sensor].isApertureSpads);
 	VL53L0X_SetOffsetCalibrationDataMicroMeter(&TOF_I2C[sensor], TOF_CALIBRATION_DIST[sensor]);
-
-	//static int32_t offset = 0;
-	//static uint32_t dist = 100;
-	//dist = (dist*(1<<16));
-	//static VL53L0X_Error err;
-	//err = VL53L0X_PerformOffsetCalibration(&TOF_I2C[sensor], (FixPoint1616_t)dist, &offset);
-	//printf("Offset %d is: %d\r\n", sensor, (int)offset);
-
 	VL53L0X_SetDeviceMode(&TOF_I2C[sensor], VL53L0X_DEVICEMODE_CONTINUOUS_RANGING);
 
 	// Enable/Disable Sigma and Signal check
@@ -178,48 +168,35 @@ void detect_wall_and_turn(MotorController controllers[]) {
 	uint16_t range = 0;
 	VL53L0X_Error err = get_tof_rangedata_cts(FORWARD_TOF, &range);
 
-//	printf("FRONT TOF READING: %d\r\n", (int)range);
-	int slope = front_tof_position[CC_NUM_TRACKED_MEASUREMENTS-1] - front_tof_position[0] / (CC_NUM_TRACKED_MEASUREMENTS);
-
-	static int i = 0;
-	if(i == CC_NUM_TRACKED_MEASUREMENTS) {
-		for (int j = 0; j < CC_NUM_TRACKED_MEASUREMENTS - 1; j++) {
-			front_tof_position[j] = front_tof_position[j+1];
-			front_tof_velocity[j] = front_tof_velocity[j+1];
-		}
-		i -= 1;
-//		printf("FRONT TOF RUNNING SLOPE: %d \r\n", (int) slope);
-	}
-	front_tof_position[i] = range;
-	front_tof_velocity[i] = slope;
-	i += 1;
-
-
 	if(err) {
 		stop();
 		while(1);
 	}
-	axises data;
-	icm20948_accel_read_g(&data);
-	if(fabs(data.z) > 2.0) {
+
+	axises accel_data;
+	icm20948_accel_read_g(&accel_data);
+
+	if(fabs(accel_data.z) > 2.0) {
 		// in pit
 		stop();
 		HAL_Delay(1000);
-		icm20948_accel_read_g(&data);
+		icm20948_accel_read_g(&accel_data);
 		move_forward(100);
-		while (data.y > -1) {
+
+		while (accel_data.y > -1) {
 			course_correction(controllers);
-			icm20948_accel_read_g(&data);
+			icm20948_accel_read_g(&accel_data);
 		}
+
 		move_forward(100);
-		icm20948_gyro_read_dps(&data);
-		while(data.x > -20) {
-			icm20948_gyro_read_dps(&data);
+		icm20948_gyro_read_dps(&accel_data);
+
+		while(accel_data.x > -20) {
+			icm20948_gyro_read_dps(&accel_data);
 		}
 	}
 	else if(range < course_sections[cur_course_sec].front_stop_dist_mm) {
-		printf("Axises Data x: %d, Axises Data y: %d, Axises Data z: %d\r\n", (int) data.x * 1000, (int) data.y * 1000, (int) data.z * 1000);
-	//			 Execute right turn and continue on the next course section
+	//	Execute right turn and continue on the next course section
 		cur_course_sec++;
 		if(cur_course_sec >= 11) {
 			cur_course_sec = 0;
@@ -245,18 +222,6 @@ static inline float calc_centre_dist(float dist_front, float dist_rear) {
 }
 
 void course_correction(MotorController controllers[]) {
-
-  // leaving the below code in to compare reading speeds.
-	/*
-  // Currently, these measurements take around 70 ms to complete.
-  static VL53L0X_RangingMeasurementData_t tof_fl_rangedata;
-	static VL53L0X_RangingMeasurementData_t tof_rl_rangedata;
-	VL53L0X_Error err1 = VL53L0X_PerformSingleRangingMeasurement(FL_I2C1, &tof_fl_rangedata);
-	VL53L0X_Error err2 = VL53L0X_PerformSingleRangingMeasurement(RL_I2C2, &tof_rl_rangedata);
-	float front = tof_fl_rangedata.RangeMilliMeter;
-	float rear = tof_rl_rangedata.RangeMilliMeter;
-	*/
-
 	// Get data from the side ToF sensors
 	uint16_t front = 0;
 	uint16_t rear = 0;
@@ -268,33 +233,6 @@ void course_correction(MotorController controllers[]) {
 	  stop();
 	  while(1);
 	}
-	/*
-	float dist = calc_centre_dist(front, rear);
-	// Calculate error between current and expected position
-	float error = course_sections[cur_course_sec].side_dist_mm - dist;
-
-	// Percentage to scale motors by.
-	// A positive scaling factor means that the left motors should have their power increased, and vice versa.
-	float scaling_factor = CC_KP * error;
-
-	if(scaling_factor < -0.3f) {
-		scaling_factor = -0.3f;
-	} else if(scaling_factor > 0.3f) {
-		scaling_factor = 0.3f;
-	}
-
-	int32_t speed_right = (1.0f - scaling_factor) * BASE_MOTOR_SPEED;
-	int32_t speed_left = (1.0f + scaling_factor) * BASE_MOTOR_SPEED;
-
-	printf("centre dist: %d, error %d, scaling_factor: %d%%, speed_right: %d, speed_left: %d\r\n", (int)dist, (int)error, (int)(scaling_factor*100), (int)speed_right, (int)speed_left);
-
-	set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], speed_right);
-	set_motor_speed(&controllers[REAR_RIGHT_MOTOR], speed_right);
-
-	set_motor_speed(&controllers[FRONT_LEFT_MOTOR], speed_left);
-	set_motor_speed(&controllers[REAR_LEFT_MOTOR], speed_left);
-	*/
-
 
 	if (front > rear) {
 	        if(rear - course_sections[cur_course_sec].side_dist_mm < (-15)){}

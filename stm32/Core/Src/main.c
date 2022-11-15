@@ -182,17 +182,7 @@ int main(void)
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
 
-	/*uint16_t range_f, range_sf, range_sr;
-	VL53L0X_Error err1, err2, err3;
-	while(1) {
-		//while(!getTofStatus(FRONT_SIDE_TOF) || !getTofStatus(REAR_SIDE_TOF) || !getTofStatus(FORWARD_TOF));
-		err1 = get_tof_rangedata_cts(FORWARD_TOF, &range_f);
-		err2 = get_tof_rangedata_cts(FRONT_SIDE_TOF, &range_sf);
-		err3 = get_tof_rangedata_cts(REAR_SIDE_TOF, &range_sr);
-		asm("nop");
-	}*/
-
-	//move_forward(BASE_MOTOR_SPEED);
+	move_forward(BASE_MOTOR_SPEED);
 	while (1)
 	{
 		// Wait for button press before starting to move.
@@ -205,17 +195,6 @@ int main(void)
 			// Check for side ToF reading.
 			course_correction(controllers);
 			detect_wall_and_turn(controllers);
-			/*
-			if(getTofStatus(FRONT_SIDE_TOF) && getTofStatus(REAR_SIDE_TOF)) {
-				course_correction(controllers);
-			}
-
-			// Check for forward ToF reading.
-			if(getTofStatus(FORWARD_TOF)) {
-				detect_wall_and_turn(controllers);
-			}
-			*/
-
 		}
 
 		stop();
