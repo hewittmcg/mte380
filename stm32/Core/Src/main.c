@@ -180,13 +180,18 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-	while(1) {
-		for(int i = 0; i < 10; i++) {
-			log_item(LOG_SOURCE_GENERAL, HAL_GetTick(), 0, 133);
-		}
-		while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
-		log_output();
+	axises gyro;
+	axises accel;
+	while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
+	for(int i = 0; i < 50; i++) {
+		// Read 1000 logs from the IMU across 10 seconds
+		icm20948_gyro_read_dps(&gyro);
+		icm20948_accel_read_g(&accel);
+		log_item(LOG_SOURCE_IMU, HAL_GetTick(), gyro.z, accel.z);
+		HAL_Delay(10);
 	}
+	log_output();
+	while(1);
 	while (1)
 	{
 		// Wait for button press before starting to move.
