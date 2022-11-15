@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include "stm32f4xx_hal_gpio.h"
 #include "ICM20948.h"
+#include "logger.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -179,6 +180,13 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+	while(1) {
+		for(int i = 0; i < 10; i++) {
+			log_item(LOG_SOURCE_GENERAL, HAL_GetTick(), 0, 133);
+		}
+		while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
+		log_output();
+	}
 	while (1)
 	{
 		// Wait for button press before starting to move.
