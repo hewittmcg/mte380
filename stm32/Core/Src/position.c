@@ -206,7 +206,7 @@ void detect_wall_and_turn() {
 		if(
 			abs(front_tof_velocity[CC_NUM_TRACKED_MEASUREMENTS - 1]) > 400 
 			&& front_tof_velocity[CC_NUM_TRACKED_MEASUREMENTS - 1] != 0
-			&& data.z != 0
+			&& data.y != 0 // not sure what the data here looks like but should check for whether we oriented down or up
 		) {
 			// in pit
 			stop();
@@ -225,9 +225,9 @@ void detect_wall_and_turn() {
 			turn_right();
 
 			HAL_Delay(100);
+			move_forward(BASE_MOTOR_SPEED);
 		}
 
-		move_forward(BASE_MOTOR_SPEED);
 	}
 }
 
