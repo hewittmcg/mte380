@@ -95,6 +95,7 @@ void turn_right_imu(uint16_t degrees) {
 
   // Turn until the error is minimized and we have been turning for at least IMU_TURN_MIN_TIME
   // This is slow, but should be quite accurate for the time being.
+  // N: should be based on error and change in error (error and gyro.z)
   while(abs(error) > IMU_TURN_ERROR_THRESH || prev_time - start_time < IMU_TURN_MIN_TIME) {
 	  // TODO: we only need to read the z value here, not all three.
 	  icm20948_gyro_read_dps(&gyro_reading);
@@ -106,16 +107,18 @@ void turn_right_imu(uint16_t degrees) {
 
 	  // Right turn seems to be positive IMU reading in the z-axis
 	  degrees_turned += cur_degrees;
-	  prev_reading = gyro_reading.z;
-	  prev_time = cur_time;
 	  error = degrees - degrees_turned;
 
 	  float x = 0;
+	  int turn_back = 0; // N: I rly shouldnt need this, but im stupid and want test
+	  float Kp = 0.8;
+	  float Kd = 0.1;
 	  if(error > IMU_TURN_MIN_FULL_SPEED_ERROR) {
 		  x = TURNING_MOTOR_SPEED;
 	  } else {
 		  // If we've overshot the target, turn back to it
-		  x = IMU_TURN_CORRECTION_SPEED * (error > 0 ? 1 : -1);
+		  turn_back = (error > 90 ? 1 : -1);
+		  x = IMU_TURN_CORRECTION_SPEED * (Kp * error + Kd * gyro_reading.z * turn_back);
 	  }
 
 	  // Scale motors as we reach the reading
@@ -124,6 +127,10 @@ void turn_right_imu(uint16_t degrees) {
 
 	  set_motor_speed(&controllers[FRONT_LEFT_MOTOR], x);
 	  set_motor_speed(&controllers[REAR_LEFT_MOTOR], x);
+
+	  //N: set these after to use in controller section
+	  prev_reading = gyro_reading.z;
+	  prev_time = cur_time;
   }
 
 
