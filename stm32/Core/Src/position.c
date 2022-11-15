@@ -164,7 +164,7 @@ VL53L0X_Error get_tof_rangedata_cts(TofSensor sensor, uint16_t *range) {
 
 // Check if the forward-facing ToF sensor detects a wall and turn 90 degrees to the right if so.
 // This is a blocking call.
-void detect_wall_and_turn(MotorController controllers[]) {
+void detect_wall_and_turn() {
 	uint16_t range = 0;
 	VL53L0X_Error err = get_tof_rangedata_cts(FORWARD_TOF, &range);
 
@@ -184,7 +184,7 @@ void detect_wall_and_turn(MotorController controllers[]) {
 		move_forward(100);
 
 		while (accel_data.y > -1) {
-			course_correction(controllers);
+			course_correction();
 			icm20948_accel_read_g(&accel_data);
 		}
 
@@ -221,7 +221,7 @@ static inline float calc_centre_dist(float dist_front, float dist_rear) {
 	return dist_rear*cos(theta) + SIDE_TOF_SEPARATION_MM/2 * sin(theta);
 }
 
-void course_correction(MotorController controllers[]) {
+void course_correction() {
 	// Get data from the side ToF sensors
 	uint16_t front = 0;
 	uint16_t rear = 0;
@@ -238,11 +238,11 @@ void course_correction(MotorController controllers[]) {
 	        if(rear - course_sections[cur_course_sec].side_dist_mm < (-15)){}
 	        else if(rear - course_sections[cur_course_sec].side_dist_mm > (15)){
 	            float x = 0.5;
-	            set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
-	            set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (int)((1+x)* BASE_MOTOR_SPEED));
+	            setMotorSpeed(FRONT_RIGHT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED));
+	            setMotorSpeed(REAR_RIGHT_MOTOR, (int)((1+x)* BASE_MOTOR_SPEED));
 
-	            set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (int)((1-x) * BASE_MOTOR_SPEED));
-	            set_motor_speed(&controllers[REAR_LEFT_MOTOR], (int)((1-x) * BASE_MOTOR_SPEED));
+	            setMotorSpeed(FRONT_LEFT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED));
+	            setMotorSpeed(REAR_LEFT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED));
 	        }
 	        else{
 	            float x = (float)(front - rear)/(float)front * CORRECTION_FACTOR;
@@ -250,11 +250,11 @@ void course_correction(MotorController controllers[]) {
 	                x = 1;
 	            }
 
-	            set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
-	            set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
+	            setMotorSpeed(FRONT_RIGHT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED));
+	            setMotorSpeed(REAR_RIGHT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED));
 
-	            set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (int)((1-x) * BASE_MOTOR_SPEED));
-	            set_motor_speed(&controllers[REAR_LEFT_MOTOR], (int)((1-x) * BASE_MOTOR_SPEED));
+	            setMotorSpeed(FRONT_LEFT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED));
+	            setMotorSpeed(REAR_LEFT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED));
 	        }
 	    }
 
@@ -262,11 +262,11 @@ void course_correction(MotorController controllers[]) {
 	        if(front - course_sections[cur_course_sec].side_dist_mm > 15){}
 	        else if(front - course_sections[cur_course_sec].side_dist_mm < - 15){
 	            float x = 0.5;
-	            set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (int)((1-x) * BASE_MOTOR_SPEED));
-	            set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (int)((1-x)* BASE_MOTOR_SPEED));
+	            setMotorSpeed(FRONT_RIGHT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED));
+	            setMotorSpeed(REAR_RIGHT_MOTOR, (int)((1-x)* BASE_MOTOR_SPEED));
 
-	            set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
-	            set_motor_speed(&controllers[REAR_LEFT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
+	            setMotorSpeed(FRONT_LEFT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED));
+	            setMotorSpeed(REAR_LEFT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED));
 	        }
 	        else{
 	            float x = (float)(rear - front)/(float)rear * CORRECTION_FACTOR;
@@ -274,11 +274,11 @@ void course_correction(MotorController controllers[]) {
 	                x = 1;
 	            }
 
-	            set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (int)((1-x) * BASE_MOTOR_SPEED));
-	            set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (int)((1-x)* BASE_MOTOR_SPEED));
+	            setMotorSpeed(FRONT_RIGHT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED));
+	            setMotorSpeed(REAR_RIGHT_MOTOR, (int)((1-x)* BASE_MOTOR_SPEED));
 
-	            set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
-	            set_motor_speed(&controllers[REAR_LEFT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
+	            setMotorSpeed(FRONT_LEFT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED));
+	            setMotorSpeed(REAR_LEFT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED));
 	        }
 	    }
 

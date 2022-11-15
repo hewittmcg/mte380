@@ -193,8 +193,8 @@ int main(void)
 		// Main loop: correct and detect walls until button is pressed again.
 		while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1) {
 			// Check for side ToF reading.
-			course_correction(controllers);
-			detect_wall_and_turn(controllers);
+			course_correction();
+			detect_wall_and_turn();
 		}
 
 		stop();

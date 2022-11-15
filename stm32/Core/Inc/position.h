@@ -30,8 +30,8 @@ void TOF_Init(I2C_HandleTypeDef *hi2c, TofSensor sensor);
 
 VL53L0X_Error get_tof_rangedata_cts(TofSensor sensor, uint16_t *range);
 
-void detect_wall_and_turn(MotorController controllers[]);
+void detect_wall_and_turn();
 
-void course_correction(MotorController controllers[]);
+void course_correction();
 
 int getTofStatus(TofSensor sensor);

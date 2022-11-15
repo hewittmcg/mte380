@@ -61,6 +61,10 @@ void move_backward(int speed) {
 	}
 }
 
+void setMotorSpeed(Motor motor, int speed) {
+  set_motor_speed(&controllers[motor], speed);
+}
+
 // Turn 90 degrees to the right.
 void turn_right() {
   set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (-1)*TURNING_MOTOR_SPEED);
