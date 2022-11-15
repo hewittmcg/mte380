@@ -209,7 +209,7 @@ int main(void)
 
 			// Check for forward ToF reading.
 			if(getTofStatus(FORWARD_TOF)) {
-				detect_wall_and_turn(controllers);
+				detect_wall_and_turn();
 			}
 
 		}

@@ -7,6 +7,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include "stm32f4xx_hal_gpio.h"
+#include "ICM20948.h"
 
 // General course correction constants
 #define SIDE_TOF_SEPARATION_MM 177 // Distance between the two side ToF sensors. TODO revise this
@@ -173,7 +174,7 @@ VL53L0X_Error get_tof_rangedata_cts(TofSensor sensor, uint16_t *range) {
 
 // Check if the forward-facing ToF sensor detects a wall and turn 90 degrees to the right if so.
 // This is a blocking call.
-void detect_wall_and_turn(MotorController controllers[]) {
+void detect_wall_and_turn() {
 
 	uint16_t range = 0;
 	VL53L0X_Error err = get_tof_rangedata_cts(FORWARD_TOF, &range);
@@ -200,15 +201,17 @@ void detect_wall_and_turn(MotorController controllers[]) {
 		while(1);
 	}
 	if(range < course_sections[cur_course_sec].front_stop_dist_mm) {
-		if(abs(front_tof_velocity[CC_NUM_TRACKED_MEASUREMENTS - 1]) > 400 && front_tof_velocity[CC_NUM_TRACKED_MEASUREMENTS - 1] != 0){
+		axises data;
+		icm20948_gyro_read_dps(&data);
+		if(
+			abs(front_tof_velocity[CC_NUM_TRACKED_MEASUREMENTS - 1]) > 400 
+			&& front_tof_velocity[CC_NUM_TRACKED_MEASUREMENTS - 1] != 0
+			&& data.z != 0
+		) {
 			// in pit
 			stop();
 			HAL_Delay(100);
-			set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], 100);
-			set_motor_speed(&controllers[REAR_RIGHT_MOTOR], 100);
-
-			set_motor_speed(&controllers[FRONT_LEFT_MOTOR], 100);
-			set_motor_speed(&controllers[REAR_LEFT_MOTOR], 100);
+			move_forward(100);
 
 		} else {
 //			 Execute right turn and continue on the next course section
