@@ -8,6 +8,8 @@
 #ifndef INC_CONSTANTS_H_
 #define INC_CONSTANTS_H_
 
+#define MS_PER_SEC 1000.0
+
 // ToF calibration info.
 #define TOF_CALIBRATION_DIST 43000
 #define STOPPING_DISTANCE 350
@@ -21,6 +23,12 @@
 
 #define RIGHT_TURN_DELAY 475
 #define LEFT_TURN_DELAY 400
+
+// IMU turning constants
+#define IMU_TURN_ERROR_THRESH 5
+#define IMU_TURN_MIN_TIME 1000
+#define IMU_TURN_CORRECTION_SPEED (TURNING_MOTOR_SPEED / 2)
+#define IMU_TURN_MIN_FULL_SPEED_ERROR 30
 
 // Course correction values
 #define CORRECTION_FACTOR 5
