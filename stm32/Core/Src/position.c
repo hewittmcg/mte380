@@ -291,57 +291,36 @@ void course_correction(MotorController controllers[]) {
 	set_motor_speed(&controllers[FRONT_LEFT_MOTOR], speed_left);
 	set_motor_speed(&controllers[REAR_LEFT_MOTOR], speed_left);
 	*/
+	uint16_t max_tof = MAX(front, rear);
+	uint16_t min_tof = MIN(front, rear);
 
+	float c_factor = 0;
+	int RM_factor = 0;
 
-	if (front > rear) {
-	        if(rear - course_sections[cur_course_sec].side_dist_mm < (-15)){}
-	        else if(rear - course_sections[cur_course_sec].side_dist_mm > (15)){
-	            float x = 0.5;
-	            set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
-	            set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (int)((1+x)* BASE_MOTOR_SPEED));
-
-	            set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (int)((1-x) * BASE_MOTOR_SPEED));
-	            set_motor_speed(&controllers[REAR_LEFT_MOTOR], (int)((1-x) * BASE_MOTOR_SPEED));
-	        }
-	        else{
-	            float x = (float)(front - rear)/(float)front * CORRECTION_FACTOR;
-	            if(1 - x < 0) {
-	                x = 1;
-	            }
-
-	            set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
-	            set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
-
-	            set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (int)((1-x) * BASE_MOTOR_SPEED));
-	            set_motor_speed(&controllers[REAR_LEFT_MOTOR], (int)((1-x) * BASE_MOTOR_SPEED));
+	//determine how wrong we are
+	if (min_tof - course_sections[cur_course_sec].side_dist_mm > (-15)) {
+	    if(min_tof - course_sections[cur_course_sec].side_dist_mm > (15)){
+	    	c_factor = 0.5;
+	    }
+	    else{
+	    	c_factor = (float)(max_tof - min_tof)/(float)max_tof * CORRECTION_FACTOR;
+	        if(1 - c_factor < 0) {
+	        	c_factor = 1;
 	        }
 	    }
 
-	if (rear > front) {
-	        if(front - course_sections[cur_course_sec].side_dist_mm > 15){}
-	        else if(front - course_sections[cur_course_sec].side_dist_mm < - 15){
-	            float x = 0.5;
-	            set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (int)((1-x) * BASE_MOTOR_SPEED));
-	            set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (int)((1-x)* BASE_MOTOR_SPEED));
+	    //N: Don't know if this should be in or out of the if statement
+		RM_factor = front > rear ? c_factor : -c_factor;
+		//int LM_factor = rear > front ? 1+c_factor : 1-c_factor;
 
-	            set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
-	            set_motor_speed(&controllers[REAR_LEFT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
-	        }
-	        else{
-	            float x = (float)(rear - front)/(float)rear * CORRECTION_FACTOR;
-	            if(1 - x < 0) {
-	                x = 1;
-	            }
+		set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (int)((1+RM_factor) * BASE_MOTOR_SPEED));
+		set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (int)((1+RM_factor) * BASE_MOTOR_SPEED));
 
-	            set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (int)((1-x) * BASE_MOTOR_SPEED));
-	            set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (int)((1-x)* BASE_MOTOR_SPEED));
-
-	            set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
-	            set_motor_speed(&controllers[REAR_LEFT_MOTOR], (int)((1+x) * BASE_MOTOR_SPEED));
-	        }
-	    }
-
+		set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (int)((1-RM_factor) * BASE_MOTOR_SPEED));
+		set_motor_speed(&controllers[REAR_LEFT_MOTOR], (int)((1-RM_factor) * BASE_MOTOR_SPEED));
 	}
+}
+
 
 int getTofStatus(TofSensor sensor) {
 	return tof_status.data_ready[sensor];
