@@ -200,10 +200,9 @@ void detect_wall_and_turn(MotorController controllers[]) {
 		while(1);
 	}
 	axises data;
-	icm20948_gyro_read_dps(&data);
-	if(data.x > 75) {
+	icm20948_accel_read_g(&data);
+	if(fabs(data.z) > 2.0) {
 		// in pit
-		printf("PIT DETECTED: %d /r/n", (int) data.x * 1000);
 		stop();
 		HAL_Delay(1000);
 		icm20948_accel_read_g(&data);
