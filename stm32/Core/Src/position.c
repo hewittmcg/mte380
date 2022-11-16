@@ -29,7 +29,7 @@ typedef struct {
 #define CC_NUM_TRACKED_MEASUREMENTS 10
 
 // Full course map.
-static CourseSec course_sections[COURSE_NUM_SECTIONS] = {
+static const CourseSec COURSE_SECTIONS[COURSE_NUM_SECTIONS] = {
 	{
 		.front_stop_dist_mm = STOPPING_DISTANCE_MM,
 		.side_dist_mm = TOF_BASE_SIDE_DIST_MM,
@@ -162,6 +162,9 @@ VL53L0X_Error get_tof_rangedata_cts(TofSensor sensor, uint16_t *range) {
 	return VL53L0X_ERROR_NONE;
 }
 
+#define ACCEL_Z_PIT_THRESH 2.0f // Z accel greater than this indicates a pit.
+#define ACCEL_Y_WALL_THRESH -1.0f // Y accel less than this indicates hitting a wall at speed.
+#define GYRO_X_PIT_EXIT_THRESH -20.0f // X deg/s less than this indicates leaving the pit and rotating back upright.
 // Check if the forward-facing ToF sensor detects a wall and turn 90 degrees to the right if so.
 // This is a blocking call.
 void detect_wall_and_turn() {
@@ -176,14 +179,14 @@ void detect_wall_and_turn() {
 	axises accel_data;
 	icm20948_accel_read_g(&accel_data);
 
-	if(fabs(accel_data.z) > 2.0) {
+	if(fabs(accel_data.z) > ACCEL_Z_PIT_THRESH) {
 		// in pit
 		stop();
 		HAL_Delay(1000);
 		icm20948_accel_read_g(&accel_data);
 		move_forward(100);
 
-		while (accel_data.y > -1) {
+		while (accel_data.y > ACCEL_Y_WALL_THRESH) {
 			course_correction();
 			icm20948_accel_read_g(&accel_data);
 		}
@@ -191,14 +194,14 @@ void detect_wall_and_turn() {
 		move_forward(100);
 		icm20948_gyro_read_dps(&accel_data);
 
-		while(accel_data.x > -20) {
+		while(accel_data.x > GYRO_X_PIT_EXIT_THRESH) {
 			icm20948_gyro_read_dps(&accel_data);
 		}
 	}
-	else if(range < course_sections[cur_course_sec].front_stop_dist_mm) {
+	else if(range < COURSE_SECTIONS[cur_course_sec].front_stop_dist_mm) {
 	//	Execute right turn and continue on the next course section
 		cur_course_sec++;
-		if(cur_course_sec >= 11) {
+		if(cur_course_sec >= COURSE_NUM_SECTIONS) {
 			cur_course_sec = 0;
 			stop();
 			while(1);
@@ -235,14 +238,14 @@ void course_correction() {
 	}
 
 	if (front > rear) {
-	        if(rear - course_sections[cur_course_sec].side_dist_mm < (-15)){}
-	        else if(rear - course_sections[cur_course_sec].side_dist_mm > (15)){
+	        if(rear - COURSE_SECTIONS[cur_course_sec].side_dist_mm < (-15)){}
+	        else if(rear - COURSE_SECTIONS[cur_course_sec].side_dist_mm > (15)){
 	            float x = 0.5;
-	            setMotorSpeed(FRONT_RIGHT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED));
-	            setMotorSpeed(REAR_RIGHT_MOTOR, (int)((1+x)* BASE_MOTOR_SPEED));
+	            set_motor_id_speed(FRONT_RIGHT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED));
+	            set_motor_id_speed(REAR_RIGHT_MOTOR, (int)((1+x)* BASE_MOTOR_SPEED));
 
-	            setMotorSpeed(FRONT_LEFT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED));
-	            setMotorSpeed(REAR_LEFT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED));
+	            set_motor_id_speed(FRONT_LEFT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED));
+	            set_motor_id_speed(REAR_LEFT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED));
 	        }
 	        else{
 	            float x = (float)(front - rear)/(float)front * CORRECTION_FACTOR;
@@ -250,23 +253,23 @@ void course_correction() {
 	                x = 1;
 	            }
 
-	            setMotorSpeed(FRONT_RIGHT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED));
-	            setMotorSpeed(REAR_RIGHT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED));
+	            set_motor_id_speed(FRONT_RIGHT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED));
+	            set_motor_id_speed(REAR_RIGHT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED));
 
-	            setMotorSpeed(FRONT_LEFT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED));
-	            setMotorSpeed(REAR_LEFT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED));
+	            set_motor_id_speed(FRONT_LEFT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED));
+	            set_motor_id_speed(REAR_LEFT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED));
 	        }
 	    }
 
 	if (rear > front) {
-	        if(front - course_sections[cur_course_sec].side_dist_mm > 15){}
-	        else if(front - course_sections[cur_course_sec].side_dist_mm < - 15){
+	        if(front - COURSE_SECTIONS[cur_course_sec].side_dist_mm > 15){}
+	        else if(front - COURSE_SECTIONS[cur_course_sec].side_dist_mm < - 15){
 	            float x = 0.5;
-	            setMotorSpeed(FRONT_RIGHT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED));
-	            setMotorSpeed(REAR_RIGHT_MOTOR, (int)((1-x)* BASE_MOTOR_SPEED));
+	            set_motor_id_speed(FRONT_RIGHT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED));
+	            set_motor_id_speed(REAR_RIGHT_MOTOR, (int)((1-x)* BASE_MOTOR_SPEED));
 
-	            setMotorSpeed(FRONT_LEFT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED));
-	            setMotorSpeed(REAR_LEFT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED));
+	            set_motor_id_speed(FRONT_LEFT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED));
+	            set_motor_id_speed(REAR_LEFT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED));
 	        }
 	        else{
 	            float x = (float)(rear - front)/(float)rear * CORRECTION_FACTOR;
@@ -274,16 +277,16 @@ void course_correction() {
 	                x = 1;
 	            }
 
-	            setMotorSpeed(FRONT_RIGHT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED));
-	            setMotorSpeed(REAR_RIGHT_MOTOR, (int)((1-x)* BASE_MOTOR_SPEED));
+	            set_motor_id_speed(FRONT_RIGHT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED));
+	            set_motor_id_speed(REAR_RIGHT_MOTOR, (int)((1-x)* BASE_MOTOR_SPEED));
 
-	            setMotorSpeed(FRONT_LEFT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED));
-	            setMotorSpeed(REAR_LEFT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED));
+	            set_motor_id_speed(FRONT_LEFT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED));
+	            set_motor_id_speed(REAR_LEFT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED));
 	        }
 	    }
 
 	}
 
-int getTofStatus(TofSensor sensor) {
+int get_tof_status(TofSensor sensor) {
 	return tof_status.data_ready[sensor];
 }

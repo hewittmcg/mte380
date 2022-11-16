@@ -61,7 +61,7 @@ void move_backward(int speed) {
 	}
 }
 
-void setMotorSpeed(Motor motor, int speed) {
+void set_motor_id_speed(Motor motor, int speed) {
   set_motor_speed(&controllers[motor], speed);
 }
 

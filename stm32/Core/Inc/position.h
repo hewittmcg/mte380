@@ -34,4 +34,4 @@ void detect_wall_and_turn();
 
 void course_correction();
 
-int getTofStatus(TofSensor sensor);
+int get_tof_status(TofSensor sensor);
