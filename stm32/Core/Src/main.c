@@ -182,7 +182,6 @@ int main(void)
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
 
-	move_forward(BASE_MOTOR_SPEED);
 	while (1)
 	{
 		// Wait for button press before starting to move.
