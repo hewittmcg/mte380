@@ -194,6 +194,7 @@ int main(void)
 			// Check for side ToF reading.
 			course_correction();
 			detect_wall_and_turn();
+			add_imu_reading();
 		}
 
 		stop();

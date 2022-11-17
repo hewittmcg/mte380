@@ -93,16 +93,30 @@ typedef struct {
 	uint32_t ticks;
 } ImuReading;
 
-#define NUM_IMU_READINGS 10
+#define NUM_IMU_READINGS 50
 // We only want to consider readings for the last 500 ms
-#define IMU_RECENT_ANGLE_MAX_TIME 500
+#define IMU_RECENT_ANGLE_MAX_TIME 1000
+#define IMU_MIN_READING_INTERVAL 25
 static ImuReading imu_reading_storage[NUM_IMU_READINGS] = { 0 };
 static int cur_imu_reading_idx = 0;
+static uint32_t prev_reading_time = 0;
 
-static void add_imu_reading(float reading) {
-	imu_reading_storage[cur_imu_reading_idx].reading = reading;
+void add_imu_reading(void) {
+	// Don't read if we haven't passed the minimum reading time yet
+	// (prev_reading_time == 0 means we haven't taken a reading yet)
+
+	if(prev_reading_time != 0 && HAL_GetTick() < prev_reading_time + IMU_MIN_READING_INTERVAL) {
+		return;
+	}
+	prev_reading_time = HAL_GetTick();
+	// Take a reading
+	axises data;
+	icm20948_gyro_read_dps(&data);
+	imu_reading_storage[cur_imu_reading_idx].reading = data.x;
 	imu_reading_storage[cur_imu_reading_idx].ticks = HAL_GetTick();
 	cur_imu_reading_idx++;
+	//printf("Added IMU reading * 10000: %d\r\n", (int)(data.x * 10000));
+	//printf("Ticks = %zu\r\n", (size_t)imu_reading_storage[cur_imu_reading_idx].ticks);
 
 	// Wrap around back to the start and overwrite with the new reading
 	if(cur_imu_reading_idx >= NUM_IMU_READINGS) {
@@ -111,7 +125,9 @@ static void add_imu_reading(float reading) {
 }
 
 // Calculate the recent angle across the stored IMU readings.
-static float get_IMU_recent_angle_diff(void) {
+float get_IMU_recent_angle_diff(void) {
+	printf("get_IMU_recent_angle_diff\r\n");
+	uint32_t ticks_at_start = HAL_GetTick();
 	// Numerically integrate
 	float total_angle = 0;
 
@@ -130,10 +146,17 @@ static float get_IMU_recent_angle_diff(void) {
 		if(imu_reading_storage[cur_idx].ticks < tick_threshold) {
 			continue;
 		}
+		// Don't divide by zero or have a negative reading
+		if(imu_reading_storage[next_idx].ticks <= imu_reading_storage[cur_idx].ticks) {
+			continue;
+		}
 		float increment = ((imu_reading_storage[cur_idx].reading + imu_reading_storage[next_idx].reading)/2)
 				* (imu_reading_storage[next_idx].ticks - imu_reading_storage[cur_idx].ticks) / MS_PER_SEC;
 		total_angle += increment;
 	}
+
+	uint32_t ticks_at_end = HAL_GetTick();
+	printf("end get_IMU_recent_angle_diff, elapsed %d\r\n", (int)(ticks_at_end - ticks_at_start));
 
 	return total_angle;
 }
@@ -219,6 +242,7 @@ VL53L0X_Error get_tof_rangedata_cts(TofSensor sensor, uint16_t *range) {
 // Check if the forward-facing ToF sensor detects a wall and turn 90 degrees to the right if so.
 // This is a blocking call.
 void detect_wall_and_turn() {
+	printf("detect wall and turn\r\n");
 	uint16_t range = 0;
 	VL53L0X_Error err = get_tof_rangedata_cts(FORWARD_TOF, &range);
 
@@ -229,7 +253,7 @@ void detect_wall_and_turn() {
 
 	axises accel_data;
 	icm20948_accel_read_g(&accel_data);
-
+#if 0
 	if(fabs(accel_data.z) > ACCEL_Z_PIT_THRESH) {
 		// in pit
 		stop();
@@ -249,7 +273,21 @@ void detect_wall_and_turn() {
 			icm20948_gyro_read_dps(&accel_data);
 		}
 	}
-	else if(range < COURSE_SECTIONS[cur_course_sec].front_stop_dist_mm) {
+#endif
+	if(range < COURSE_SECTIONS[cur_course_sec].front_stop_dist_mm) {
+		// Check whether we are in a pit and ignore the reading if so
+		float angle = get_IMU_recent_angle_diff();
+		if(angle <= -10.0f) {
+			printf("In pit with angle = %d.%d\r\n", (int)(angle), (int)((angle - (int)angle * 1000)));
+			stop();
+			HAL_Delay(2000);
+			move_forward(BASE_MOTOR_SPEED);
+			return;
+		} else {
+			printf("At wall with angle = %d.%d\r\n", (int)(angle), (int)((angle - (int)angle * 1000)));
+			//HAL_Delay(5000);
+			//return;
+		}
 	//	Execute right turn and continue on the next course section
 		cur_course_sec++;
 		if(cur_course_sec >= COURSE_NUM_SECTIONS) {
@@ -257,12 +295,15 @@ void detect_wall_and_turn() {
 			stop();
 			while(1);
 		}
+#if 1
 		stop();
 		turn_right_imu(90);
 
 		HAL_Delay(100);
 		move_forward(BASE_MOTOR_SPEED);
+#endif
 	}
+
 }
 
 // Calculates the right-angle distance from the centre of the robot to the wall
