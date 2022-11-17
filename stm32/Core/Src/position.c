@@ -103,8 +103,6 @@ static uint32_t prev_reading_time = 0;
 
 void add_imu_reading(void) {
 	// Don't read if we haven't passed the minimum reading time yet
-	// (prev_reading_time == 0 means we haven't taken a reading yet)
-
 	if(prev_reading_time != 0 && HAL_GetTick() < prev_reading_time + IMU_MIN_READING_INTERVAL) {
 		return;
 	}
@@ -115,8 +113,6 @@ void add_imu_reading(void) {
 	imu_reading_storage[cur_imu_reading_idx].reading = data.x;
 	imu_reading_storage[cur_imu_reading_idx].ticks = HAL_GetTick();
 	cur_imu_reading_idx++;
-	//printf("Added IMU reading * 10000: %d\r\n", (int)(data.x * 10000));
-	//printf("Ticks = %zu\r\n", (size_t)imu_reading_storage[cur_imu_reading_idx].ticks);
 
 	// Wrap around back to the start and overwrite with the new reading
 	if(cur_imu_reading_idx >= NUM_IMU_READINGS) {
@@ -126,8 +122,6 @@ void add_imu_reading(void) {
 
 // Calculate the recent angle across the stored IMU readings.
 float get_IMU_recent_angle_diff(void) {
-	printf("get_IMU_recent_angle_diff\r\n");
-	uint32_t ticks_at_start = HAL_GetTick();
 	// Numerically integrate
 	float total_angle = 0;
 
@@ -154,9 +148,6 @@ float get_IMU_recent_angle_diff(void) {
 				* (imu_reading_storage[next_idx].ticks - imu_reading_storage[cur_idx].ticks) / MS_PER_SEC;
 		total_angle += increment;
 	}
-
-	uint32_t ticks_at_end = HAL_GetTick();
-	printf("end get_IMU_recent_angle_diff, elapsed %d\r\n", (int)(ticks_at_end - ticks_at_start));
 
 	return total_angle;
 }
@@ -236,9 +227,18 @@ VL53L0X_Error get_tof_rangedata_cts(TofSensor sensor, uint16_t *range) {
 	return VL53L0X_ERROR_NONE;
 }
 
-#define ACCEL_Z_PIT_THRESH 2.0f // Z accel greater than this indicates a pit.
-#define ACCEL_Y_WALL_THRESH -1.0f // Y accel less than this indicates hitting a wall at speed.
-#define GYRO_X_PIT_EXIT_THRESH -20.0f // X deg/s less than this indicates leaving the pit and rotating back upright.
+static inline void get_side_tof_readings(uint16_t *front, uint16_t *rear) {
+	// Get data from the side ToF sensors
+	VL53L0X_Error err1 = get_tof_rangedata_cts(FRONT_SIDE_TOF, front);
+	VL53L0X_Error err2 = get_tof_rangedata_cts(REAR_SIDE_TOF, rear);
+
+	if(err1 != VL53L0X_ERROR_NONE || err2 != VL53L0X_ERROR_NONE) {
+	  // I2C might be disconnected, so stop to indicate we're having issues.
+	  stop();
+	  while(1);
+	}
+}
+
 // Check if the forward-facing ToF sensor detects a wall and turn 90 degrees to the right if so.
 // This is a blocking call.
 void detect_wall_and_turn() {
@@ -251,29 +251,6 @@ void detect_wall_and_turn() {
 		while(1);
 	}
 
-	axises accel_data;
-	icm20948_accel_read_g(&accel_data);
-#if 0
-	if(fabs(accel_data.z) > ACCEL_Z_PIT_THRESH) {
-		// in pit
-		stop();
-		HAL_Delay(1000);
-		icm20948_accel_read_g(&accel_data);
-		move_forward(100);
-
-		while (accel_data.y > ACCEL_Y_WALL_THRESH) {
-			course_correction();
-			icm20948_accel_read_g(&accel_data);
-		}
-
-		move_forward(100);
-		icm20948_gyro_read_dps(&accel_data);
-
-		while(accel_data.x > GYRO_X_PIT_EXIT_THRESH) {
-			icm20948_gyro_read_dps(&accel_data);
-		}
-	}
-#endif
 	if(range < COURSE_SECTIONS[cur_course_sec].front_stop_dist_mm) {
 		// Check whether we are in a pit and ignore the reading if so
 		float angle = get_IMU_recent_angle_diff();
@@ -285,23 +262,29 @@ void detect_wall_and_turn() {
 			return;
 		} else {
 			printf("At wall with angle = %d.%d\r\n", (int)(angle), (int)((angle - (int)angle * 1000)));
-			//HAL_Delay(5000);
-			//return;
 		}
-	//	Execute right turn and continue on the next course section
+
+		// Execute right turn and continue on the next course section
 		cur_course_sec++;
 		if(cur_course_sec >= COURSE_NUM_SECTIONS) {
 			cur_course_sec = 0;
 			stop();
 			while(1);
 		}
-#if 1
-		stop();
-		turn_right_imu(90);
 
-		HAL_Delay(100);
+		stop();
+
+		// Adjust the amount we turn by the side ToF reading
+		uint16_t front = 0;
+		uint16_t rear = 0;
+		get_side_tof_readings(&front, &rear);
+		// Calculate angle robot is turned at (this should maybe be moved into its own function):
+		float cur_angle = atan2((front - rear), SIDE_TOF_SEPARATION_MM);
+
+		turn_right_imu(90 - cur_angle);
+		// Test this: I don't think this is needed anymore
+		//HAL_Delay(100);
 		move_forward(BASE_MOTOR_SPEED);
-#endif
 	}
 
 }
@@ -317,17 +300,9 @@ static inline float calc_centre_dist(float dist_front, float dist_rear) {
 }
 
 void course_correction() {
-	// Get data from the side ToF sensors
 	uint16_t front = 0;
 	uint16_t rear = 0;
-	VL53L0X_Error err1 = get_tof_rangedata_cts(FRONT_SIDE_TOF, &front);
-	VL53L0X_Error err2 = get_tof_rangedata_cts(REAR_SIDE_TOF, &rear);
-
-	if(err1 != VL53L0X_ERROR_NONE || err2 != VL53L0X_ERROR_NONE) {
-	  // I2C might be disconnected, so stop to indicate we're having issues.
-	  stop();
-	  while(1);
-	}
+	get_side_tof_readings(&front, &rear);
 
 	if (front > rear) {
 	        if(rear - COURSE_SECTIONS[cur_course_sec].side_dist_mm < (-15)){}
