@@ -184,10 +184,10 @@ int main(void)
 	while(1) {
 		while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
 		HAL_Delay(1000);
-		set_motor_id_speed(FRONT_LEFT_MOTOR, 25);
-		set_motor_id_speed(REAR_LEFT_MOTOR, 25);
-		set_motor_id_speed(FRONT_RIGHT_MOTOR, 50);
-		set_motor_id_speed(REAR_RIGHT_MOTOR, 50);
+		set_motor_id_speed(FRONT_LEFT_MOTOR, 35);
+		set_motor_id_speed(REAR_LEFT_MOTOR, 35);
+		set_motor_id_speed(FRONT_RIGHT_MOTOR, 35);
+		set_motor_id_speed(REAR_RIGHT_MOTOR, 35);
 		HAL_Delay(4000);
 	}
 	while (1)
