@@ -181,7 +181,11 @@ int main(void)
   /* USER CODE BEGIN WHILE */
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
-
+	while(1) {
+		while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
+		HAL_Delay(3000);
+		turn_right_imu(90);
+	}
 	while (1)
 	{
 		// Wait for button press before starting to move.
