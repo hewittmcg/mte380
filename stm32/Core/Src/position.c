@@ -20,10 +20,14 @@ typedef struct {
 	uint16_t side_dist_mm;
 	// Percentage to scale speed by (i.e. in later sections, where accuracy is more important)
 	// float speed_scaling_percent; 
+	uint32_t ticks_before_stop; // Number of ticks before we should start checking the front ToF sensor
 } CourseSec;
 
 // Only test the first 4 sections for the time being
 #define COURSE_NUM_SECTIONS 11
+
+#define EST_MAX_SPEED 0.8f // Estimated max speed in m/s
+#define COURSE_SEC_LEN_M 0.3f // Length of one course section
 
 // For D control, we want to track the last few errors in a ring buffer to compute the running average.
 #define CC_NUM_TRACKED_MEASUREMENTS 10
@@ -33,51 +37,66 @@ static const CourseSec COURSE_SECTIONS[COURSE_NUM_SECTIONS] = {
 	{
 		.front_stop_dist_mm = STOPPING_DISTANCE_MM,
 		.side_dist_mm = TOF_BASE_SIDE_DIST_MM,
+		.ticks_before_stop = (4 * COURSE_SEC_LEN_M) / EST_MAX_SPEED * MS_PER_SEC,
 	},
 	{
 		.front_stop_dist_mm = STOPPING_DISTANCE_MM,
 		.side_dist_mm = TOF_BASE_SIDE_DIST_MM,
+		.ticks_before_stop = (4 * COURSE_SEC_LEN_M) / EST_MAX_SPEED * MS_PER_SEC,
 	},
 	{
 		.front_stop_dist_mm = STOPPING_DISTANCE_MM,
 		.side_dist_mm = TOF_BASE_SIDE_DIST_MM,
+		.ticks_before_stop = (4 * COURSE_SEC_LEN_M) / EST_MAX_SPEED * MS_PER_SEC,
 	},
 	{
 		.front_stop_dist_mm = STOPPING_DISTANCE_MM + BOARD_SQUARE_SIZE_MM,
 		.side_dist_mm = TOF_BASE_SIDE_DIST_MM,
+		.ticks_before_stop = (3 * COURSE_SEC_LEN_M) / EST_MAX_SPEED * MS_PER_SEC,
 	},
 	{
 		.front_stop_dist_mm = STOPPING_DISTANCE_MM + BOARD_SQUARE_SIZE_MM,
 		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + BOARD_SQUARE_SIZE_MM,
+		.ticks_before_stop = (3 * COURSE_SEC_LEN_M) / EST_MAX_SPEED * MS_PER_SEC,
+		
 	},
 	{
 		.front_stop_dist_mm = STOPPING_DISTANCE_MM + BOARD_SQUARE_SIZE_MM,
 		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + BOARD_SQUARE_SIZE_MM,
+		.ticks_before_stop = (2 * COURSE_SEC_LEN_M) / EST_MAX_SPEED * MS_PER_SEC,
 	},
 	{
 		.front_stop_dist_mm = STOPPING_DISTANCE_MM + BOARD_SQUARE_SIZE_MM,
 		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + BOARD_SQUARE_SIZE_MM,
+		.ticks_before_stop = (2 * COURSE_SEC_LEN_M) / EST_MAX_SPEED * MS_PER_SEC,
 	},
 	{
 		.front_stop_dist_mm = STOPPING_DISTANCE_MM + 2*BOARD_SQUARE_SIZE_MM,
 		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + BOARD_SQUARE_SIZE_MM,
+		.ticks_before_stop = (1 * COURSE_SEC_LEN_M) / EST_MAX_SPEED * MS_PER_SEC,
 	},
 	{
 		.front_stop_dist_mm = STOPPING_DISTANCE_MM + 2*BOARD_SQUARE_SIZE_MM,
 		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + 2*BOARD_SQUARE_SIZE_MM,
+		.ticks_before_stop = (1 * COURSE_SEC_LEN_M) / EST_MAX_SPEED * MS_PER_SEC,
 	},
 	{
 		.front_stop_dist_mm = STOPPING_DISTANCE_MM + 2*BOARD_SQUARE_SIZE_MM,
 		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + 2*BOARD_SQUARE_SIZE_MM,
+		.ticks_before_stop = (0 * COURSE_SEC_LEN_M) / EST_MAX_SPEED * MS_PER_SEC,
 	},
 	{
 		.front_stop_dist_mm = STOPPING_DISTANCE_MM + 2*BOARD_SQUARE_SIZE_MM,
 		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + 2*BOARD_SQUARE_SIZE_MM,
+		.ticks_before_stop = (0 * COURSE_SEC_LEN_M) / EST_MAX_SPEED * MS_PER_SEC,
 	}
 };
 
 // Section of the course currently being traversed.
 static uint8_t cur_course_sec = 0;
+
+// Number of ticks elapsed at the start of the current section.
+static uint32_t ticks_at_start_of_sec = 0;
 
 // Storage for status of whether ToF sensor data ready
 static TofStatus tof_status;
@@ -242,6 +261,16 @@ static inline void get_side_tof_readings(uint16_t *front, uint16_t *rear) {
 // Check if the forward-facing ToF sensor detects a wall and turn 90 degrees to the right if so.
 // This is a blocking call.
 void detect_wall_and_turn() {
+	// Set ticks_at_start_of_sec at the first call
+	if(ticks_at_start_of_sec == 0) {
+		ticks_at_start_of_sec = HAL_GetTick();
+	}
+	
+	// Don't do anything if it's before we want to start checking
+	if(HAL_GetTick() - ticks_at_start_of_sec < COURSE_SECTIONS[cur_course_sec].ticks_before_stop) {
+		return;
+	}
+
 	printf("detect wall and turn\r\n");
 	uint16_t range = 0;
 	VL53L0X_Error err = get_tof_rangedata_cts(FORWARD_TOF, &range);
@@ -281,9 +310,12 @@ void detect_wall_and_turn() {
 		// Calculate angle robot is turned at (this should maybe be moved into its own function):
 		float cur_angle = atan2((front - rear), SIDE_TOF_SEPARATION_MM);
 
-		turn_right_imu(90 - cur_angle);
+		turn_right_imu(90);
 		// Test this: I don't think this is needed anymore
 		//HAL_Delay(100);
+
+		// Reset ticks at start
+		ticks_at_start_of_sec = HAL_GetTick();
 		move_forward(BASE_MOTOR_SPEED);
 	}
 
