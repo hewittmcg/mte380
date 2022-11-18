@@ -37,6 +37,8 @@ void TOF_Init(I2C_HandleTypeDef *hi2c, TofSensor sensor);
 
 VL53L0X_Error get_tof_rangedata_cts(TofSensor sensor, uint16_t *range);
 
+float calc_centre_dist(float dist_front, float dist_rear);
+
 void detect_wall_and_turn();
 
 void course_correction();

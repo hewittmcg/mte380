@@ -181,6 +181,25 @@ int main(void)
   /* USER CODE BEGIN WHILE */
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
+	// Take side ToF readings
+	VL53L0X_Error front_err, rear_err;
+	uint16_t front, rear;
+
+	while(1) {
+		front_err = get_tof_rangedata_cts(FRONT_SIDE_TOF, &front);
+		rear_err = get_tof_rangedata_cts(REAR_SIDE_TOF, &rear);
+		// Calculate distance to the wall
+
+		if(front_err || rear_err) {
+			stop();
+			while(1);
+		}
+
+		float side_dist = calc_centre_dist(front, rear);
+		printf("Side Distance: %d.%d\r\n", (int)(side_dist), (int)(((int) side_dist - side_dist)*-1000.0f));
+
+		asm("nop");
+	}
 
 	while (1)
 	{

@@ -323,12 +323,12 @@ void detect_wall_and_turn() {
 
 // Calculates the right-angle distance from the centre of the robot to the wall
 // based on readings from the two side ToF sensors.
-static inline float calc_centre_dist(float dist_front, float dist_rear) {
+float calc_centre_dist(float dist_front, float dist_rear) {
 	// Calculate angle robot is turned at:
 	float theta = atan2((dist_front - dist_rear), SIDE_TOF_SEPARATION_MM);
 
 	// Calculate distance from the bottom ToF and then relate that to the centre
-	return dist_rear*cos(theta) + SIDE_TOF_SEPARATION_MM/2 * sin(theta);
+	return (dist_rear*cos(theta) + SIDE_TOF_SEPARATION_MM/2 * sin(theta) ) * 0.95;
 }
 
 void course_correction() {
