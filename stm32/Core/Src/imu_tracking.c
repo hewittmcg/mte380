@@ -50,7 +50,8 @@ float get_gyro_recent_x_diff(void) {
 	float total_angle = 0;
 
 	uint32_t tick_threshold = HAL_GetTick() - IMU_RECENT_ANGLE_MAX_TIME;
-	for(int i = 0; i < NUM_IMU_READINGS - 1; i++) {
+	// TODO: check if the bounds are correct here
+    for(int i = 0; i < NUM_IMU_READINGS - 2; i++) {
 		// Account for how the buffer of readings works
 		// (i.e. we want to start at cur_imu_reading_idx, since it points to the least recent reading)
 		int cur_idx = i + cur_imu_reading_idx;
