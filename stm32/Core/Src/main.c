@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include "stm32f4xx_hal_gpio.h"
 #include "ICM20948.h"
+#include "imu_tracking.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -191,10 +192,9 @@ int main(void)
 
 		// Main loop: correct and detect walls until button is pressed again.
 		while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1) {
-			// Check for side ToF reading.
 			course_correction();
 			detect_wall_and_turn();
-			add_imu_reading();
+			add_gyro_x_reading();
 		}
 
 		stop();

@@ -24,13 +24,6 @@ typedef struct {
 	volatile int data_ready[NUM_TOFS]; // Set by ISR handling EXTI from ToF sensor
 } TofStatus;
 
-// Take an IMU reading for pit detection.
-void add_imu_reading(void);
-
-// Get the change in angle across the recently taken IMU readings by
-// numerical integration.
-float get_IMU_recent_angle_diff(void);
-
 void HAL_GPIO_EXTI_Callback(uint16_t gpio_pin);
 
 void TOF_Init(I2C_HandleTypeDef *hi2c, TofSensor sensor);
