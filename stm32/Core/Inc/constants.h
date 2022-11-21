@@ -11,7 +11,7 @@
 #define MS_PER_SEC 1000.0
 
 // ToF calibration info.
-#define STOPPING_DISTANCE_MM 300
+#define STOPPING_DISTANCE_MM 280
 #define BOARD_SQUARE_SIZE_MM 300 // original - 300
 #define TOF_BASE_SIDE_DIST_MM 120 // distance from the side TOFs to the edge of the board. Need to revisit.
 
@@ -36,6 +36,6 @@
 
 // Photoresistor bounds
 #define PHOTORESISTOR_ABS_UPPER_BOUND 4200
-#define PHOTORESISTOR_THRESHOLD 2000
+#define PHOTORESISTOR_THRESHOLD 2300
 
 #endif /* INC_CONSTANTS_H_ */
