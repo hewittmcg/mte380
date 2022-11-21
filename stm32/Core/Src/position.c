@@ -25,7 +25,6 @@ typedef struct {
 	uint32_t ticks_before_stop; // Number of ticks before we should start checking the front ToF sensor
 } CourseSec;
 
-// Only test the first 4 sections for the time being
 #define COURSE_NUM_SECTIONS 11
 
 #define EST_MAX_SPEED 1.0f // Estimated max speed in m/s
@@ -224,7 +223,6 @@ void detect_wall_and_turn() {
 		return;
 	}
 
-	printf("detect wall and turn\r\n");
 	uint16_t range = 0;
 	VL53L0X_Error err = get_tof_rangedata_cts(FORWARD_TOF, &range);
 
@@ -245,9 +243,6 @@ void detect_wall_and_turn() {
 		float angle = get_gyro_recent_x_diff();
 		if(angle <= -2.0f) {
 			printf("In pit with angle = %d.%d\r\n", (int)(angle), (int)((angle - (int)angle * 1000)));
-			// stop();
-			// HAL_Delay(2000);
-			// move_forward(BASE_MOTOR_SPEED);
 			return;
 		} else {
 			printf("At wall with angle = %d.%d\r\n", (int)(angle), (int)((angle - (int)angle * 1000)));
@@ -271,8 +266,6 @@ void detect_wall_and_turn() {
 		float cur_angle = atan2((front - rear), SIDE_TOF_SEPARATION_MM);
 
 		turn_right_imu(90);
-		// Test this: I don't think this is needed anymore
-		//HAL_Delay(500);
 
 		// Reset ticks at start
 		ticks_at_start_of_sec = HAL_GetTick();
@@ -343,15 +336,6 @@ void course_correction() {
 	            set_motor_id_speed(REAR_LEFT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
 	        }
 	    }
-	// Run front motors quickly while we're in sand
-	// (todo: do this better)
-#if 0
-	if(in_sand()) {
-		set_motor_id_speed(FRONT_RIGHT_MOTOR, 90);
-		set_motor_id_speed(FRONT_LEFT_MOTOR, 90);
-	}
-#endif
-
 	}
 
 int get_tof_status(TofSensor sensor) {
