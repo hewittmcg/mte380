@@ -86,7 +86,7 @@ static const CourseSec COURSE_SECTIONS[COURSE_NUM_SECTIONS] = {
 		.speed_scaling_percent = 1.00,
 	},
 	{
-		.front_stop_dist_mm = STOPPING_DISTANCE_MM + 2*BOARD_SQUARE_SIZE_MM - 45,
+		.front_stop_dist_mm = STOPPING_DISTANCE_MM + 2*BOARD_SQUARE_SIZE_MM - 25,
 		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + 2*BOARD_SQUARE_SIZE_MM,
 		.ticks_before_stop = (1 * COURSE_SEC_LEN_M) / EST_MAX_SPEED * MS_PER_SEC,
 		.speed_scaling_percent = 1.00,
@@ -116,7 +116,7 @@ static TofStatus tof_status;
 
 // ToF sensor device mappings
 static VL53L0X_Dev_t TOF_I2C[NUM_TOFS] = {0};
-static int TOF_CALIBRATION_DIST[NUM_TOFS] = {70000, 60000, 45000};
+static int TOF_CALIBRATION_DIST[NUM_TOFS] = {44000, 39000, 27000};
 static struct TOF_Calibration TOFs[NUM_TOFS] = {0};
 
 // Handle external interrupt from ToF sensors
@@ -164,7 +164,12 @@ void TOF_Init(I2C_HandleTypeDef *hi2c, TofSensor sensor){
 	VL53L0X_ClearInterruptMask(&TOF_I2C[sensor], VL53L0X_REG_SYSTEM_INTERRUPT_GPIO_NEW_SAMPLE_READY);
 }
 
-
+void calibrate_tof(int32_t *forward_offset, int32_t *fs_offset, int32_t *rs_offset) {
+	FixPoint1616_t cal_dist = 300 << 16;
+	VL53L0X_PerformOffsetCalibration(&TOF_I2C[FORWARD_TOF], cal_dist, forward_offset);
+	VL53L0X_PerformOffsetCalibration(&TOF_I2C[FRONT_SIDE_TOF], cal_dist, fs_offset);
+	VL53L0X_PerformOffsetCalibration(&TOF_I2C[REAR_SIDE_TOF], cal_dist, rs_offset);
+}
 // Read data from the given ToF sensor and set the pointer passed in to the range, returning any errors.
 // To be called when using continuous ranging with interrupts.
 // cannot be called until interrupt fires, i.e, check status before calling
@@ -233,7 +238,7 @@ void detect_wall_and_turn() {
 		if(in_sand()) return;
 		// Check whether we are in a pit and ignore the reading if so
 		float angle = get_gyro_recent_x_diff();
-		if(fabs(angle) >= 3.0f) {
+		if(angle <= -2.0f) {
 			printf("In pit with angle = %d.%d\r\n", (int)(angle), (int)((angle - (int)angle * 1000)));
 			// stop();
 			// HAL_Delay(2000);
@@ -262,7 +267,7 @@ void detect_wall_and_turn() {
 
 		turn_right_imu(90);
 		// Test this: I don't think this is needed anymore
-		HAL_Delay(500);
+		//HAL_Delay(500);
 
 		// Reset ticks at start
 		ticks_at_start_of_sec = HAL_GetTick();

@@ -28,6 +28,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t gpio_pin);
 
 void TOF_Init(I2C_HandleTypeDef *hi2c, TofSensor sensor);
 
+void calibrate_tof(int32_t *forward_offset, int32_t *fs_offset, int32_t *rs_offset);
+
 VL53L0X_Error get_tof_rangedata_cts(TofSensor sensor, uint16_t *range);
 
 void detect_wall_and_turn();
