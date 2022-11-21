@@ -287,6 +287,7 @@ static inline float calc_centre_dist(float dist_front, float dist_rear) {
 void course_correction() {
 	uint16_t front = 0;
 	uint16_t rear = 0;
+	get_side_tof_readings(&front, &rear);
 	VL53L0X_Error err1 = get_tof_rangedata_cts(FRONT_SIDE_TOF, &front);
 	VL53L0X_Error err2 = get_tof_rangedata_cts(REAR_SIDE_TOF, &rear);
 
@@ -315,11 +316,11 @@ void course_correction() {
 
 	printf("centre dist: %d, error %d, scaling_factor: %d%%, speed_right: %d, speed_left: %d\r\n", (int)dist, (int)error, (int)(scaling_factor*100), (int)speed_right, (int)speed_left);
 
-	set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], speed_right);
-	set_motor_speed(&controllers[REAR_RIGHT_MOTOR], speed_right);
+	set_motor_id_speed(FRONT_RIGHT_MOTOR, speed_right);
+	set_motor_id_speed(REAR_RIGHT_MOTOR, speed_right);
 
-	set_motor_speed(&controllers[FRONT_LEFT_MOTOR], speed_left);
-	set_motor_speed(&controllers[REAR_LEFT_MOTOR], speed_left);
+	set_motor_id_speed(FRONT_LEFT_MOTOR, speed_left);
+	set_motor_id_speed(REAR_LEFT_MOTOR, speed_left);
 	*/
 	uint16_t max_tof = MAX(front, rear);
 	uint16_t min_tof = MIN(front, rear);
@@ -328,8 +329,8 @@ void course_correction() {
 	int RM_factor = 0;
 
 	//determine how wrong we are
-	if (min_tof - course_sections[cur_course_sec].side_dist_mm > (-15)) {
-	    if(min_tof - course_sections[cur_course_sec].side_dist_mm > (15)){
+	if (min_tof - COURSE_SECTIONS[cur_course_sec].side_dist_mm > (-15)) {
+	    if(min_tof - COURSE_SECTIONS[cur_course_sec].side_dist_mm > (15)){
 	    	c_factor = 0.5;
 	    }
 	    else{
@@ -343,11 +344,11 @@ void course_correction() {
 		RM_factor = front > rear ? c_factor : -c_factor;
 		//int LM_factor = rear > front ? 1+c_factor : 1-c_factor;
 
-		set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (int)((1+RM_factor) * BASE_MOTOR_SPEED));
-		set_motor_speed(&controllers[REAR_RIGHT_MOTOR], (int)((1+RM_factor) * BASE_MOTOR_SPEED));
+		set_motor_id_speed(FRONT_RIGHT_MOTOR, (int)((1+RM_factor) * BASE_MOTOR_SPEED));
+		set_motor_id_speed(REAR_RIGHT_MOTOR, (int)((1+RM_factor) * BASE_MOTOR_SPEED));
 
-		set_motor_speed(&controllers[FRONT_LEFT_MOTOR], (int)((1-RM_factor) * BASE_MOTOR_SPEED));
-		set_motor_speed(&controllers[REAR_LEFT_MOTOR], (int)((1-RM_factor) * BASE_MOTOR_SPEED));
+		set_motor_id_speed(FRONT_LEFT_MOTOR, (int)((1-RM_factor) * BASE_MOTOR_SPEED));
+		set_motor_id_speed(REAR_LEFT_MOTOR, (int)((1-RM_factor) * BASE_MOTOR_SPEED));
 	}
 }
 
