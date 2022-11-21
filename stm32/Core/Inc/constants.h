@@ -34,4 +34,8 @@
 // Course correction values
 #define CORRECTION_FACTOR 10
 
+// Photoresistor bounds
+#define PHOTORESISTOR_ABS_UPPER_BOUND 4200
+#define PHOTORESISTOR_THRESHOLD 3500
+
 #endif /* INC_CONSTANTS_H_ */
