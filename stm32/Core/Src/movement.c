@@ -12,15 +12,10 @@ static MotorController *controllers;
 void movement_init(MotorController *mcs) {
   controllers = mcs;
 
-  motor_init(mcs);
-  motor_init(mcs);
-  motor_init(mcs);
-  motor_init(mcs);
-
-  set_motor_direction(mcs, MOTOR_DIR_OFF);
-  set_motor_direction(mcs, MOTOR_DIR_OFF);
-  set_motor_direction(mcs, MOTOR_DIR_OFF);
-  set_motor_direction(mcs, MOTOR_DIR_OFF);
+  motor_init(&mcs[FRONT_LEFT_MOTOR]);
+  motor_init(&mcs[FRONT_RIGHT_MOTOR]);
+  motor_init(&mcs[REAR_LEFT_MOTOR]);
+  motor_init(&mcs[REAR_RIGHT_MOTOR]);
 }
 
 // Stop robot movement.

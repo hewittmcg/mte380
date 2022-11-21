@@ -189,10 +189,7 @@ int main(void)
 		// Wait for button press before starting to move.
 		while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
 		HAL_Delay(1000);
-		set_motor_id_speed(FRONT_LEFT_MOTOR, 50);
-		set_motor_id_speed(REAR_LEFT_MOTOR, 50);
-		set_motor_id_speed(FRONT_RIGHT_MOTOR, 50);
-		set_motor_id_speed(REAR_RIGHT_MOTOR, 50);
+		turn_right_imu(90);
 		while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
 //		move_forward(BASE_MOTOR_SPEED);
 //		HAL_Delay(10000);
