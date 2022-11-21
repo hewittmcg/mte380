@@ -194,12 +194,12 @@ int main(void)
 
 		// Main loop: correct and detect walls until button is pressed again.
 		while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1) {
-      if(get_tof_status(FRONT_SIDE_TOF) && get_tof_status(REAR_SIDE_TOF)) {
-			  course_correction();
-      }
-      if(get_tof_status(FORWARD_TOF)) {
-        detect_wall_and_turn();
-      }
+		  if(get_tof_status(FRONT_SIDE_TOF) && get_tof_status(REAR_SIDE_TOF)) {
+				  course_correction();
+		  }
+		  if(get_tof_status(FORWARD_TOF)) {
+			detect_wall_and_turn();
+		  }
 			add_gyro_x_reading();
 		}
 
@@ -207,8 +207,10 @@ int main(void)
 		HAL_Delay(1000);
 
     // Button press to output logs
-    while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
-    log_output();
+	while(1) {
+		while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
+		log_output();
+	}
 
     /* USER CODE END WHILE */
 

@@ -7,7 +7,7 @@
 #include "logger.h"
 #include <stdio.h>
 
-#define NUM_LOGS 1000
+#define NUM_LOGS 100
 static LogItem logs[NUM_LOGS];
 
 // Current index to log to.
