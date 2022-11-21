@@ -10,22 +10,18 @@
 #include "main.h"
 #include "constants.h"
 
-bool in_pit(void){
-	uint16_t voltage;
-	bool in_pit = true;
-	HAL_StatusTypeDef Err_ADC = HAL_OK;
-
+bool in_sand(void){
 	//reading the sensor to get color value
 	HAL_ADC_Start(&hadc1);
-	Err_ADC = HAL_ADC_PollForConversion(&hadc1, 1);
-	voltage = HAL_ADC_GetValue(&hadc1);
+	HAL_StatusTypeDef Err_ADC = HAL_ADC_PollForConversion(&hadc1, 1);
+	uint16_t voltage = HAL_ADC_GetValue(&hadc1);
 
-	if (Err_ADC != HAL_OK || voltage < PHOTORESISTOR_LOWER_BOUND ||
-			voltage > PHOTORESISTOR_UPPER_BOUND) {
-		in_pit = false;
+	if (Err_ADC != HAL_OK || voltage < PHOTORESISTOR_THRESHOLD ||
+			voltage > PHOTORESISTOR_ABS_UPPER_BOUND) {
+		return false;
 	}
 
-	return in_pit;
+	else return true;
 
 }
 
