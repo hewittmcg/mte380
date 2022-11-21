@@ -9,6 +9,7 @@
 #include "stm32f4xx_hal_gpio.h"
 #include "imu_tracking.h"
 #include "ICM20948.h"
+#include "photoresistor.h"
 
 // General course correction constants
 #define SIDE_TOF_SEPARATION_MM 177 // Distance between the two side ToF sensors. TODO revise this
@@ -228,6 +229,8 @@ void detect_wall_and_turn() {
 	}
 
 	if(range < COURSE_SECTIONS[cur_course_sec].front_stop_dist_mm) {
+		// If in sand, ignore reading until we're out
+		if(in_sand()) stop();
 		// Check whether we are in a pit and ignore the reading if so
 		float angle = get_gyro_recent_x_diff();
 		if(fabs(angle) >= 3.0f) {
@@ -330,6 +333,14 @@ void course_correction() {
 	            set_motor_id_speed(REAR_LEFT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
 	        }
 	    }
+	// Run front motors quickly while we're in sand
+	// (todo: do this better)
+#if 0
+	if(in_sand()) {
+		set_motor_id_speed(FRONT_RIGHT_MOTOR, 90);
+		set_motor_id_speed(FRONT_LEFT_MOTOR, 90);
+	}
+#endif
 
 	}
 
