@@ -13,7 +13,7 @@ static LogItem logs[NUM_LOGS];
 // Current index to log to.
 static uint16_t log_idx = 0;
 
-bool log_item(LogSource source, uint16_t timestamp, uint16_t val1, uint16_t val2) {
+bool log_item(LogSource source, uint32_t timestamp, uint16_t val1, uint16_t val2) {
 	if(log_idx >= NUM_LOGS) {
 		return false;
 	}
@@ -28,7 +28,7 @@ bool log_item(LogSource source, uint16_t timestamp, uint16_t val1, uint16_t val2
 
 void log_output(void) {
 	for(int i = 0; i < log_idx; i++) {
-		printf("%d, %d, %d, %d,\r\n", logs[i].source, logs[i].timestamp, logs[i].data[0], logs[i].data[1]);
+		printf("%d, %lu, %d, %d,\r\n", logs[i].source, logs[i].timestamp, logs[i].data[0], logs[i].data[1]);
 	}
 }
 

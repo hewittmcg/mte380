@@ -23,12 +23,12 @@ typedef enum {
 #pragma pack(1)
 typedef struct {
 	uint8_t source; // Source of the log
-	uint16_t timestamp; // Log timestamp
+	uint32_t timestamp; // Log timestamp
 	uint16_t data[2]; // Each log type has around two data values
 } LogItem;
 
 // Log an item.
-bool log_item(LogSource source, uint16_t timestamp, uint16_t val1, uint16_t val2);
+bool log_item(LogSource source, uint32_t timestamp, uint16_t val1, uint16_t val2);
 
 // Output all the recorded logs.
 void log_output(void);

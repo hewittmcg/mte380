@@ -31,6 +31,7 @@
 #include "stm32f4xx_hal_gpio.h"
 #include "ICM20948.h"
 #include "logger.h"
+#include "imu_tracking.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -54,6 +55,8 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc1;
+
 FMPI2C_HandleTypeDef hfmpi2c1;
 
 I2C_HandleTypeDef hi2c1;
@@ -120,6 +123,7 @@ static void MX_I2C3_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_TIM8_Init(void);
+static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -165,6 +169,7 @@ int main(void)
   MX_SPI2_Init();
   MX_TIM1_Init();
   MX_TIM8_Init();
+  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
 
 	// Initialize ToF sensors
@@ -180,18 +185,6 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-	axises gyro;
-	axises accel;
-	while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
-	for(int i = 0; i < 50; i++) {
-		// Read 1000 logs from the IMU across 10 seconds
-		icm20948_gyro_read_dps(&gyro);
-		icm20948_accel_read_g(&accel);
-		log_item(LOG_SOURCE_IMU, HAL_GetTick(), gyro.z, accel.z);
-		HAL_Delay(10);
-	}
-	log_output();
-	while(1);
 	while (1)
 	{
 		// Wait for button press before starting to move.
@@ -201,20 +194,21 @@ int main(void)
 
 		// Main loop: correct and detect walls until button is pressed again.
 		while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1) {
-			// Check for side ToF reading.
-			if(getTofStatus(FRONT_SIDE_TOF) && getTofStatus(REAR_SIDE_TOF)) {
-				course_correction(controllers);
-			}
-
-			// Check for forward ToF reading.
-			if(getTofStatus(FORWARD_TOF)) {
-				detect_wall_and_turn();
-			}
-
+      if(get_tof_status(FRONT_SIDE_TOF) && get_tof_status(REAR_SIDE_TOF)) {
+			  course_correction();
+      }
+      if(get_tof_status(FORWARD_TOF)) {
+        detect_wall_and_turn();
+      }
+			add_gyro_x_reading();
 		}
 
 		stop();
 		HAL_Delay(1000);
+
+    // Button press to output logs
+    while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
+    log_output();
 
     /* USER CODE END WHILE */
 
@@ -273,6 +267,56 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief ADC1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC1_Init(void)
+{
+
+  /* USER CODE BEGIN ADC1_Init 0 */
+
+  /* USER CODE END ADC1_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC1_Init 1 */
+
+  /* USER CODE END ADC1_Init 1 */
+  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
+  */
+  hadc1.Instance = ADC1;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
+  hadc1.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc1.Init.ScanConvMode = DISABLE;
+  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.DiscontinuousConvMode = DISABLE;
+  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc1.Init.NbrOfConversion = 1;
+  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  if (HAL_ADC_Init(&hadc1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_0;
+  sConfig.Rank = 1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC1_Init 2 */
+
+  /* USER CODE END ADC1_Init 2 */
+
 }
 
 /**

@@ -1,8 +1,5 @@
 #include "helpers.h"
 
-#define MIN(a,b) (((a)<(b))?(a):(b))
-#define MAX(a,b) (((a)>(b))?(a):(b))
-
 // Indicates the start of a critical section. Disables interrupts and returns whether interrupts were previously enabled.
 bool critical_section_start(void) {
 	bool enabled = (__get_PRIMASK() == 0);
