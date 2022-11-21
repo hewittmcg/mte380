@@ -184,21 +184,6 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-	/* Infinite loop */
-	/* USER CODE BEGIN WHILE */
-	/*
-	int32_t forward, front, right;
-	//calibrate_tof(&forward, &front, &right);
-	VL53L0X_Error err1, err2, err3;
-	uint16_t range_f, range_sf, range_sr;
-	while(1) {
-		//while(!get_tof_status(FRONT_SIDE_TOF) || !get_tof_status(REAR_SIDE_TOF) || !get_tof_status(FORWARD_TOF));
-		err1 = get_tof_rangedata_cts(FORWARD_TOF, &range_f);
-		err2 = get_tof_rangedata_cts(FRONT_SIDE_TOF, &range_sf);
-		err3 = get_tof_rangedata_cts(REAR_SIDE_TOF, &range_sr);
-		asm("nop");
-	}
-*/
 	while (1)
 	{
 		// Wait for button press before starting to move.
