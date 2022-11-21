@@ -2,6 +2,9 @@
 #include <stdio.h>
 #include "stm32f4xx_hal_gpio.h"
 
+#define MIN(a,b) (((a)<(b))?(a):(b))
+#define MAX(a,b) (((a)>(b))?(a):(b))
+
 // Indicates the start of a critical section. Disables interrupts and returns whether interrupts were previously enabled.
 bool critical_section_start(void);
 
