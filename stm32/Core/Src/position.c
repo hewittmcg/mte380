@@ -235,7 +235,12 @@ void detect_wall_and_turn() {
 
 	if(range < COURSE_SECTIONS[cur_course_sec].front_stop_dist_mm) {
 		// If in sand, ignore reading until we're out
-		if(in_sand()) return;
+		if(in_sand()) {
+			HAL_GPIO_WritePin(GPIOA, LD2_Pin, GPIO_PIN_SET);
+			return;
+		} else {
+			HAL_GPIO_WritePin(GPIOA, LD2_Pin, GPIO_PIN_RESET);
+		}
 		// Check whether we are in a pit and ignore the reading if so
 		float angle = get_gyro_recent_x_diff();
 		if(angle <= -2.0f) {
