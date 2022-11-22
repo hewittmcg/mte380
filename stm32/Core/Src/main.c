@@ -68,11 +68,13 @@ SPI_HandleTypeDef hspi2;
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim8;
 
+UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 
 // TODO: move this somewhere better
+#define PRINTF_UART_HANDLE &huart1
 #ifdef __GNUC__
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
 #else
@@ -81,7 +83,7 @@ UART_HandleTypeDef huart2;
 
 PUTCHAR_PROTOTYPE
 {
-  HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
+  HAL_UART_Transmit(PRINTF_UART_HANDLE, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
   return ch;
 }
 
@@ -124,6 +126,7 @@ static void MX_SPI2_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_TIM8_Init(void);
 static void MX_ADC1_Init(void);
+static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -170,6 +173,7 @@ int main(void)
   MX_TIM1_Init();
   MX_TIM8_Init();
   MX_ADC1_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 
 	// Initialize ToF sensors
@@ -185,6 +189,12 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+	while(1) {
+		uint8_t test = 'a';
+		//HAL_UART_Transmit(&huart1, &test, 1, HAL_MAX_DELAY);
+		printf("Test UART message from murphy\r\n");
+		HAL_Delay(1000);
+	}
 	while (1)
 	{
 		// Wait for button press before starting to move.
@@ -646,6 +656,39 @@ static void MX_TIM8_Init(void)
 
   /* USER CODE END TIM8_Init 2 */
   HAL_TIM_MspPostInit(&htim8);
+
+}
+
+/**
+  * @brief USART1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART1_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART1_Init 0 */
+
+  /* USER CODE END USART1_Init 0 */
+
+  /* USER CODE BEGIN USART1_Init 1 */
+
+  /* USER CODE END USART1_Init 1 */
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 115200;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART1_Init 2 */
+
+  /* USER CODE END USART1_Init 2 */
 
 }
 
