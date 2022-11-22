@@ -233,6 +233,7 @@ void detect_wall_and_turn() {
 	}
 
 	log_item(LOG_SOURCE_FORWARD_TOF, HAL_GetTick(), range, 0);
+	log_item(LOG_SOURCE_GENERAL, HAL_GetTick(), get_gyro_recent_x_diff(), 0);
 
 	if(range < COURSE_SECTIONS[cur_course_sec].front_stop_dist_mm) {
 		// If in sand, ignore reading until we're out
@@ -244,6 +245,8 @@ void detect_wall_and_turn() {
 		}
 		// Check whether we are in a pit and ignore the reading if so
 		float angle = get_gyro_recent_x_diff();
+
+		log_item(LOG_SOURCE_GENERAL, HAL_GetTick(), angle, 0);
 		if(angle <= -2.0f) {
 			printf("In pit with angle = %d.%d\r\n", (int)(angle), (int)((angle - (int)angle * 1000)));
 			return;
