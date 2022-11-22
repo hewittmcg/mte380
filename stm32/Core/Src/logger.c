@@ -30,6 +30,8 @@ bool log_item(LogSource source, uint32_t timestamp, uint16_t val1, uint16_t val2
 void log_output(void) {
 	for(int i = 0; i < log_idx; i++) {
 		printf("%d, %lu, %d, %d,\r\n", logs[i].source, logs[i].timestamp, logs[i].data[0], logs[i].data[1]);
+
+		// For each log, need to wait for the other nucleo to printf it over USB after sending
 		HAL_Delay(10);
 	}
 }

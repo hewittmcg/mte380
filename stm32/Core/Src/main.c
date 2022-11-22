@@ -57,8 +57,6 @@
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
 
-FMPI2C_HandleTypeDef hfmpi2c1;
-
 I2C_HandleTypeDef hi2c1;
 I2C_HandleTypeDef hi2c2;
 I2C_HandleTypeDef hi2c3;
@@ -68,19 +66,19 @@ SPI_HandleTypeDef hspi2;
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim8;
 
-UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
+UART_HandleTypeDef huart6;
 
 /* USER CODE BEGIN PV */
 
 // TODO: move this somewhere better
-#define PRINTF_UART_HANDLE &huart1
 #ifdef __GNUC__
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
 #else
 #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
 #endif
 
+#define PRINTF_UART_HANDLE &huart6
 PUTCHAR_PROTOTYPE
 {
   HAL_UART_Transmit(PRINTF_UART_HANDLE, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
@@ -118,7 +116,6 @@ static MotorController controllers[NUM_MOTORS] = {
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
-static void MX_FMPI2C1_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_I2C3_Init(void);
@@ -126,7 +123,7 @@ static void MX_SPI2_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_TIM8_Init(void);
 static void MX_ADC1_Init(void);
-static void MX_USART1_UART_Init(void);
+static void MX_USART6_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -165,7 +162,6 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
-  MX_FMPI2C1_Init();
   MX_I2C1_Init();
   MX_I2C2_Init();
   MX_I2C3_Init();
@@ -173,7 +169,7 @@ int main(void)
   MX_TIM1_Init();
   MX_TIM8_Init();
   MX_ADC1_Init();
-  MX_USART1_UART_Init();
+  MX_USART6_UART_Init();
   /* USER CODE BEGIN 2 */
 
 	// Initialize ToF sensors
@@ -189,15 +185,6 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-
-	for(int i = 0; i < 50; i++) {
-		log_item(LOG_SOURCE_GENERAL, HAL_GetTick(), i, i * i);
-	}
-	while(1) {
-		while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
-		log_output();
-		HAL_Delay(1000);
-	}
 	while (1)
 	{
 		// Wait for button press before starting to move.
@@ -208,7 +195,7 @@ int main(void)
 		// Main loop: correct and detect walls until button is pressed again.
 		while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1) {
 		  if(get_tof_status(FRONT_SIDE_TOF) && get_tof_status(REAR_SIDE_TOF)) {
-			  course_correction();
+				  course_correction();
 		  }
 		  if(get_tof_status(FORWARD_TOF)) {
 			detect_wall_and_turn();
@@ -240,7 +227,6 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
-  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
 
   /** Configure the main internal regulator output voltage
   */
@@ -273,12 +259,6 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_FMPI2C1;
-  PeriphClkInitStruct.Fmpi2c1ClockSelection = RCC_FMPI2C1CLKSOURCE_APB;
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
   {
     Error_Handler();
   }
@@ -331,46 +311,6 @@ static void MX_ADC1_Init(void)
   /* USER CODE BEGIN ADC1_Init 2 */
 
   /* USER CODE END ADC1_Init 2 */
-
-}
-
-/**
-  * @brief FMPI2C1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_FMPI2C1_Init(void)
-{
-
-  /* USER CODE BEGIN FMPI2C1_Init 0 */
-
-  /* USER CODE END FMPI2C1_Init 0 */
-
-  /* USER CODE BEGIN FMPI2C1_Init 1 */
-
-  /* USER CODE END FMPI2C1_Init 1 */
-  hfmpi2c1.Instance = FMPI2C1;
-  hfmpi2c1.Init.Timing = 0x00A0A3F7;
-  hfmpi2c1.Init.OwnAddress1 = 0;
-  hfmpi2c1.Init.AddressingMode = FMPI2C_ADDRESSINGMODE_7BIT;
-  hfmpi2c1.Init.DualAddressMode = FMPI2C_DUALADDRESS_DISABLE;
-  hfmpi2c1.Init.OwnAddress2 = 0;
-  hfmpi2c1.Init.OwnAddress2Masks = FMPI2C_OA2_NOMASK;
-  hfmpi2c1.Init.GeneralCallMode = FMPI2C_GENERALCALL_DISABLE;
-  hfmpi2c1.Init.NoStretchMode = FMPI2C_NOSTRETCH_DISABLE;
-  if (HAL_FMPI2C_Init(&hfmpi2c1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /** Configure Analogue filter
-  */
-  if (HAL_FMPI2CEx_ConfigAnalogFilter(&hfmpi2c1, FMPI2C_ANALOGFILTER_ENABLE) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN FMPI2C1_Init 2 */
-
-  /* USER CODE END FMPI2C1_Init 2 */
 
 }
 
@@ -663,39 +603,6 @@ static void MX_TIM8_Init(void)
 }
 
 /**
-  * @brief USART1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_USART1_UART_Init(void)
-{
-
-  /* USER CODE BEGIN USART1_Init 0 */
-
-  /* USER CODE END USART1_Init 0 */
-
-  /* USER CODE BEGIN USART1_Init 1 */
-
-  /* USER CODE END USART1_Init 1 */
-  huart1.Instance = USART1;
-  huart1.Init.BaudRate = 9600;
-  huart1.Init.WordLength = UART_WORDLENGTH_8B;
-  huart1.Init.StopBits = UART_STOPBITS_1;
-  huart1.Init.Parity = UART_PARITY_NONE;
-  huart1.Init.Mode = UART_MODE_TX_RX;
-  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USART1_Init 2 */
-
-  /* USER CODE END USART1_Init 2 */
-
-}
-
-/**
   * @brief USART2 Initialization Function
   * @param None
   * @retval None
@@ -725,6 +632,39 @@ static void MX_USART2_UART_Init(void)
   /* USER CODE BEGIN USART2_Init 2 */
 
   /* USER CODE END USART2_Init 2 */
+
+}
+
+/**
+  * @brief USART6 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART6_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART6_Init 0 */
+
+  /* USER CODE END USART6_Init 0 */
+
+  /* USER CODE BEGIN USART6_Init 1 */
+
+  /* USER CODE END USART6_Init 1 */
+  huart6.Instance = USART6;
+  huart6.Init.BaudRate = 9600;
+  huart6.Init.WordLength = UART_WORDLENGTH_8B;
+  huart6.Init.StopBits = UART_STOPBITS_1;
+  huart6.Init.Parity = UART_PARITY_NONE;
+  huart6.Init.Mode = UART_MODE_TX_RX;
+  huart6.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart6.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart6) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART6_Init 2 */
+
+  /* USER CODE END USART6_Init 2 */
 
 }
 
