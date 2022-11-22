@@ -6,6 +6,7 @@
  */
 #include "logger.h"
 #include <stdio.h>
+#include "stm32f4xx_hal.h"
 
 #define NUM_LOGS 100
 static LogItem logs[NUM_LOGS];
@@ -29,6 +30,7 @@ bool log_item(LogSource source, uint32_t timestamp, uint16_t val1, uint16_t val2
 void log_output(void) {
 	for(int i = 0; i < log_idx; i++) {
 		printf("%d, %lu, %d, %d,\r\n", logs[i].source, logs[i].timestamp, logs[i].data[0], logs[i].data[1]);
+		HAL_Delay(10);
 	}
 }
 

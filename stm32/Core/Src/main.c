@@ -189,10 +189,13 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
+	for(int i = 0; i < 50; i++) {
+		log_item(LOG_SOURCE_GENERAL, HAL_GetTick(), i, i * i);
+	}
 	while(1) {
-		uint8_t test = 'a';
-		//HAL_UART_Transmit(&huart1, &test, 1, HAL_MAX_DELAY);
-		printf("Test UART message from murphy\r\n");
+		while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
+		log_output();
 		HAL_Delay(1000);
 	}
 	while (1)
@@ -205,7 +208,7 @@ int main(void)
 		// Main loop: correct and detect walls until button is pressed again.
 		while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1) {
 		  if(get_tof_status(FRONT_SIDE_TOF) && get_tof_status(REAR_SIDE_TOF)) {
-				  course_correction();
+			  course_correction();
 		  }
 		  if(get_tof_status(FORWARD_TOF)) {
 			detect_wall_and_turn();
@@ -675,7 +678,7 @@ static void MX_USART1_UART_Init(void)
 
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
-  huart1.Init.BaudRate = 115200;
+  huart1.Init.BaudRate = 9600;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
