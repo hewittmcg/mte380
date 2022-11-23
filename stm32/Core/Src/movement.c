@@ -1,6 +1,7 @@
 #include "movement.h"
 #include "constants.h"
 #include "ICM20948.h"
+#include "logger.h"
 #include <stdlib.h>
 
 #define ACCELERATION_INCREMENT 10
