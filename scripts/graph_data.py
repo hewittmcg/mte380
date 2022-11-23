@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import argparse
 import csv
 from enum import Enum
+import numpy as np
 
 class Reading(Enum):
     FORWARD_TOF = 0
@@ -24,6 +25,8 @@ labels = {
     Reading.TURN_STARTING.value: ["Unused", None],
 }
 
+READINGS_TO_GRAPH = [Reading.FORWARD_TOF, Reading.SIDE_TOFS, Reading.IMU, Reading.PIT_DETECT, Reading.IMU_TURN]
+
 TOF_MAX_READING = 2000
 
 # Reading indices
@@ -36,9 +39,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("filepath")
     args = parser.parse_args()
-        
+
     with open(args.filepath, "r") as f:
         reader = csv.reader(f)
+        data_split = []
+        data_max_min_time = []
         data = [[] for e in Reading]
         for row in reader:
             try:
@@ -46,28 +51,36 @@ if __name__ == "__main__":
                 if len(row) == 4:
                     # First value is the source
                     source = Reading(row[0])
+                    
+                    # Track each section of the course in separate arrays
+                    if source == Reading.TURN_STARTING:
+                        data_split.append(data)
+                        data = [[] for e in READINGS_TO_GRAPH]
 
                     # Handle special cases (we don't want ToF values to be too high)
                     if source == Reading.FORWARD_TOF or source == Reading.SIDE_TOFS:
                         row[IDX_READING1] = min(row[IDX_READING1], TOF_MAX_READING)
                         row[IDX_READING2] = min(row[IDX_READING2], TOF_MAX_READING)
-
-                    data[source.value].append(row)
+                    if source in READINGS_TO_GRAPH:
+                        arr_idx = READINGS_TO_GRAPH.index(source)
+                        data[arr_idx].append(row)  
             except Exception as e:
-                print(f"Exception adding row to data: {e}")    
+                print(f"Exception adding row to data: {e}")
+        # Append last data list
+        data_split.append(data)
 
-        fig, axs = plt.subplots(Reading.NUM_READINGS.value)
-        fig.suptitle('Data Subplots')
-
-        for idx in range(Reading.NUM_READINGS.value):
-            to_plot = data[idx]
-            x = [row[IDX_TIMESTAMP] for row in to_plot] 
-            if labels[idx][0] is not None:
-                y = [row[IDX_READING1] for row in to_plot]
-                axs[idx].plot(x, y, label = labels[idx][0]) 
-            if labels[idx][1] is not None:
-                y = [row[IDX_READING2] for row in to_plot]
-                axs[idx].plot(x, y, label = labels[idx][1]) 
-            axs[idx].legend()
-        
+        for idx, data in enumerate(data_split):
+            fig, axs = plt.subplots(len(READINGS_TO_GRAPH), sharex=True)
+            fig.suptitle(f"Section {idx} Data")
+            for idx in range(len(READINGS_TO_GRAPH)):
+                to_plot = data[idx]
+                x = [row[IDX_TIMESTAMP] for row in to_plot] 
+                if labels[idx][0] is not None:
+                    y = [row[IDX_READING1] for row in to_plot]
+                    axs[idx].plot(x, y, 'o', label = labels[idx][0]) 
+                if labels[idx][1] is not None:
+                    y = [row[IDX_READING2] for row in to_plot]
+                    axs[idx].plot(x, y, 'o', label = labels[idx][1]) 
+                axs[idx].legend()
+            
         plt.show()
