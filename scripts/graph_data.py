@@ -8,7 +8,7 @@ class Reading(Enum):
     SIDE_TOFS = 1
     IMU = 2
     GENERAL = 3
-    PHOTORESISTOR = 4
+    PIT_DETECT = 4
     IMU_TURN = 5
     TURN_STARTING = 6
     NUM_READINGS = 7
@@ -18,8 +18,8 @@ labels = {
     Reading.FORWARD_TOF.value: ["Forward ToF", None],
     Reading.SIDE_TOFS.value: ["Front Side ToF", "Rear Side ToF"],
     Reading.IMU.value: ["DPS X", "Accel Z"],
-    Reading.GENERAL.value: ["Integrated X Tracked", None],
-    Reading.PHOTORESISTOR.value: ["Photoresistor Voltage", None],
+    Reading.GENERAL.value: ["General 1", "General 2"],
+    Reading.PIT_DETECT.value: ["Pit Integrated X Tracked", "Photoresistor Voltage"],
     Reading.IMU_TURN.value: ["Integrated Turn Degrees", "Current Degrees Turned"],
     Reading.TURN_STARTING.value: ["Unused", None],
 }

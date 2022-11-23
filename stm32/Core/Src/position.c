@@ -242,7 +242,6 @@ void detect_wall_and_turn() {
 
 	if(range < COURSE_SECTIONS[cur_course_sec].front_stop_dist_mm) {
 		// If in sand, ignore reading until we're out
-		sand = in_sand(&volt);
 		if(sand) {
 			HAL_GPIO_WritePin(GPIOA, LD2_Pin, GPIO_PIN_SET);
 			return;
