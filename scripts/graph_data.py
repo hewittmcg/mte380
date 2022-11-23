@@ -17,8 +17,8 @@ class Reading(Enum):
 labels = {
     Reading.FORWARD_TOF.value: ["Forward ToF", None],
     Reading.SIDE_TOFS.value: ["Front Side ToF", "Rear Side ToF"],
-    Reading.IMU.value: ["Accel Z", None],
-    Reading.GENERAL.value: ["General 1", "General 2"],
+    Reading.IMU.value: ["DPS X", "Accel Z"],
+    Reading.GENERAL.value: ["Integrated X Tracked", None],
     Reading.PHOTORESISTOR.value: ["Photoresistor Voltage", None],
     Reading.IMU_TURN.value: ["Integrated Turn Degrees", "Current Degrees Turned"],
     Reading.TURN_STARTING.value: ["Unused", None],
