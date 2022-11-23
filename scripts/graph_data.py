@@ -25,7 +25,8 @@ labels = {
     Reading.TURN_STARTING.value: ["Unused", None],
 }
 
-READINGS_TO_GRAPH = [Reading.FORWARD_TOF, Reading.SIDE_TOFS, Reading.IMU, Reading.PIT_DETECT, Reading.IMU_TURN]
+READINGS_TO_GRAPH = [Reading.FORWARD_TOF, Reading.SIDE_TOFS, Reading.IMU, Reading.PIT_DETECT]
+SEPARATELY_GRAPHED_READINGS = [Reading.IMU, Reading.PIT_DETECT]
 
 TOF_MAX_READING = 2000
 
@@ -69,18 +70,27 @@ if __name__ == "__main__":
         # Append last data list
         data_split.append(data)
 
-        for idx, data in enumerate(data_split):
-            fig, axs = plt.subplots(len(READINGS_TO_GRAPH), sharex=True)
-            fig.suptitle(f"Section {idx} Data")
+        for sec, data in enumerate(data_split):
+            fig, axs = plt.subplots(len(READINGS_TO_GRAPH) + len(SEPARATELY_GRAPHED_READINGS), sharex=True)
+            fig.suptitle(f"Section {sec} Data")
+            offset = 0 # THIS SUCKS BUT IDK HOW TO DO THIS CORRECTLY
             for idx in range(len(READINGS_TO_GRAPH)):
+                source = READINGS_TO_GRAPH[idx]
+                print(source)
                 to_plot = data[idx]
                 x = [row[IDX_TIMESTAMP] for row in to_plot] 
                 if labels[idx][0] is not None:
                     y = [row[IDX_READING1] for row in to_plot]
-                    axs[idx].plot(x, y, 'o', label = labels[idx][0]) 
+                    axs[idx + offset].plot(x, y, 'o', label = labels[source.value][0]) 
+                try:
+                    if Reading(to_plot[0][0]) in SEPARATELY_GRAPHED_READINGS:
+                        axs[idx + offset].legend()
+                        offset = offset + 1 
+                except IndexError:
+                    pass
                 if labels[idx][1] is not None:
                     y = [row[IDX_READING2] for row in to_plot]
-                    axs[idx].plot(x, y, 'o', label = labels[idx][1]) 
-                axs[idx].legend()
+                    axs[idx + offset].plot(x, y, 'o', label = labels[source.value][1]) 
+                axs[idx + offset].legend()
             
         plt.show()
