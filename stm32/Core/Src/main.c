@@ -189,14 +189,24 @@ int main(void)
 		// Wait for button press before starting to move.
 		while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
 		HAL_Delay(1000);
-		move_forward(BASE_MOTOR_SPEED);
-
-		// Main loop: correct and detect walls until button is pressed again.
-		while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1) {
-			course_correction();
-			detect_wall_and_turn();
-			add_gyro_x_reading();
-		}
+		turn_right_imu(90);
+		while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
+//		move_forward(BASE_MOTOR_SPEED);
+//		HAL_Delay(10000);
+//		stop();
+//		// Main loop: correct and detect walls until button is pressed again.
+//		while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1) {
+//			// Check for side ToF reading.
+//			if(getTofStatus(FRONT_SIDE_TOF) && getTofStatus(REAR_SIDE_TOF)) {
+//				course_correction(controllers);
+//			}
+//
+//			// Check for forward ToF reading.
+//			if(getTofStatus(FORWARD_TOF)) {
+//				detect_wall_and_turn();
+//			}
+//
+//		}
 
 		stop();
 		HAL_Delay(1000);
