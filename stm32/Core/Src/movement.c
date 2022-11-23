@@ -121,6 +121,7 @@ void turn_right_imu(uint16_t degrees) {
 		  // If we've overshot the target, turn back to it
 		  x = IMU_TURN_CORRECTION_SPEED * (error > 0 ? 1 : -1);
 	  }
+	  log_item(LOG_SOURCE_IMU_TURN, HAL_GetTick(), cur_degrees, degrees_turned);
 
 	  // Scale motors as we reach the reading
 	  set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], (-1)*x);
