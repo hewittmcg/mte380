@@ -290,14 +290,25 @@ void course_correction() {
 	get_side_tof_readings(&front, &rear);
 
 	if (front > rear) {
-	        if(rear - COURSE_SECTIONS[cur_course_sec].side_dist_mm < (-15)){}
+	        if(rear - COURSE_SECTIONS[cur_course_sec].side_dist_mm < (-15)){
+	        	float x = (float)(COURSE_SECTIONS[cur_course_sec].side_dist_mm - rear)/(float)COURSE_SECTIONS[cur_course_sec].side_dist_mm * CORRECTION_FACTOR;
+				if(1 - x < 0) {
+					x = 1;
+				}
+
+				set_motor_id_speed(FRONT_RIGHT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
+				set_motor_id_speed(REAR_RIGHT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
+
+				set_motor_id_speed(FRONT_LEFT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
+				set_motor_id_speed(REAR_LEFT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
+			}
 	        else if(rear - COURSE_SECTIONS[cur_course_sec].side_dist_mm > (15)){
 	            float x = 0.5;
-	            set_motor_id_speed(FRONT_RIGHT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
-	            set_motor_id_speed(REAR_RIGHT_MOTOR, (int)((1+x)* BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
+	            set_motor_id_speed(FRONT_RIGHT_MOTOR, (int)((x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
+	            set_motor_id_speed(REAR_RIGHT_MOTOR, (int)((x)* BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
 
-	            set_motor_id_speed(FRONT_LEFT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
-	            set_motor_id_speed(REAR_LEFT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
+	            set_motor_id_speed(FRONT_LEFT_MOTOR, (int)((-x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
+	            set_motor_id_speed(REAR_LEFT_MOTOR, (int)((-x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
 	        }
 	        else{
 	            float x = (float)(front - rear)/(float)front * CORRECTION_FACTOR;
@@ -314,14 +325,25 @@ void course_correction() {
 	    }
 
 	if (rear > front) {
-	        if(front - COURSE_SECTIONS[cur_course_sec].side_dist_mm > 15){}
+	        if(front - COURSE_SECTIONS[cur_course_sec].side_dist_mm > 15){
+	        	float x = (float)(COURSE_SECTIONS[cur_course_sec].side_dist_mm - front)/(float)COURSE_SECTIONS[cur_course_sec].side_dist_mm * CORRECTION_FACTOR;
+				if(1 - x < 0) {
+					x = 1;
+				}
+
+				set_motor_id_speed(FRONT_RIGHT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
+				set_motor_id_speed(REAR_RIGHT_MOTOR, (int)((1-x)* BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
+
+				set_motor_id_speed(FRONT_LEFT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
+				set_motor_id_speed(REAR_LEFT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
+	        }
 	        else if(front - COURSE_SECTIONS[cur_course_sec].side_dist_mm < - 15){
 	            float x = 0.5;
-	            set_motor_id_speed(FRONT_RIGHT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
-	            set_motor_id_speed(REAR_RIGHT_MOTOR, (int)((1-x)* BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
+	            set_motor_id_speed(FRONT_RIGHT_MOTOR, (int)((-x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
+	            set_motor_id_speed(REAR_RIGHT_MOTOR, (int)((-x)* BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
 
-	            set_motor_id_speed(FRONT_LEFT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
-	            set_motor_id_speed(REAR_LEFT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
+	            set_motor_id_speed(FRONT_LEFT_MOTOR, (int)((x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
+	            set_motor_id_speed(REAR_LEFT_MOTOR, (int)((x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
 	        }
 	        else{
 	            float x = (float)(rear - front)/(float)rear * CORRECTION_FACTOR;
