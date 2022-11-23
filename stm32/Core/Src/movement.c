@@ -81,6 +81,7 @@ void turn_right() {
 
 void turn_right_imu(uint16_t degrees) {
 	// Read from the IMU and numerically integrate to get the number of degrees
+  log_item(LOG_SOURCE_TURN_STARTING, HAL_GetTick(), 0, 0);
   axises gyro_reading;
   float degrees_turned = 0;
 

@@ -1,89 +1,73 @@
 import matplotlib.pyplot as plt
 import argparse
 import csv
+from enum import Enum
+
+class Reading(Enum):
+    FORWARD_TOF = 0
+    SIDE_TOFS = 1
+    IMU = 2
+    GENERAL = 3
+    PHOTORESISTOR = 4
+    IMU_TURN = 5
+    TURN_STARTING = 6
+    NUM_READINGS = 7
+
+# Labels for each type of data stored
+labels = {
+    Reading.FORWARD_TOF.value: ["Forward ToF", None],
+    Reading.SIDE_TOFS.value: ["Front Side ToF", "Rear Side ToF"],
+    Reading.IMU.value: ["Accel Z", None],
+    Reading.GENERAL.value: ["General 1", "General 2"],
+    Reading.PHOTORESISTOR.value: ["Photoresistor Voltage", None],
+    Reading.IMU_TURN.value: ["Integrated Turn Degrees", "Current Degrees Turned"],
+    Reading.TURN_STARTING.value: ["Unused", None],
+}
+
+TOF_MAX_READING = 2000
+
+# Reading indices
+IDX_SOURCE = 0
+IDX_TIMESTAMP = 1
+IDX_READING1 = 2
+IDX_READING2 = 3
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("filepath")
     args = parser.parse_args()
-    
+        
     with open(args.filepath, "r") as f:
         reader = csv.reader(f)
-        sidetofdata = []
-        frontdata = []
-        imudata = []
-        angledata = []
-        photodata = []
-        imuturndata = []
+        data = [[] for e in Reading]
         for row in reader:
             try:
                 row = [int(ele) for ele in row]
                 if len(row) == 4:
-                    if row[0] == 0:
-                        row[2] = min(row[2], 1800)
-                        frontdata.append(row)
-                    elif row[0] == 1:
-                        row[2] = min(row[2], 500)
-                        row[3] = min(row[3], 500)
-                        sidetofdata.append(row)
-                    elif row[0] == 2:
-                        imudata.append(row)
-                    elif row[0] == 3:
-                        angledata.append(row)
-                    elif row[0] == 4:
-                        photodata.append(row)
-                    elif row[0] == 5:
-                        imuturndata.append(row)
+                    # First value is the source
+                    source = Reading(row[0])
+
+                    # Handle special cases (we don't want ToF values to be too high)
+                    if source == Reading.FORWARD_TOF or source == Reading.SIDE_TOFS:
+                        row[IDX_READING1] = min(row[IDX_READING1], TOF_MAX_READING)
+                        row[IDX_READING2] = min(row[IDX_READING2], TOF_MAX_READING)
+
+                    data[source.value].append(row)
             except Exception as e:
                 print(f"Exception adding row to data: {e}")    
 
-        print("The IMU Data is:",imudata)
-        print("The Side TOF Data is:"sideotofdata)
-        print("The Front TOF Data is:", frontdata)
-        print("The Integrated X angle is:", angledata)
-        print("The IMU Turning Data is:" imuturndata)
-        print("The Photoresistor Data is:", photodata)
+        fig, axs = plt.subplots(Reading.NUM_READINGS.value)
+        fig.suptitle('Data Subplots')
+
+        for idx in range(Reading.NUM_READINGS.value):
+            to_plot = data[idx]
+            x = [row[IDX_TIMESTAMP] for row in to_plot] 
+            if labels[idx][0] is not None:
+                y = [row[IDX_READING1] for row in to_plot]
+                axs[idx].plot(x, y, label = labels[idx][0]) 
+            if labels[idx][1] is not None:
+                y = [row[IDX_READING2] for row in to_plot]
+                axs[idx].plot(x, y, label = labels[idx][1]) 
+            axs[idx].legend()
         
-        fig, axs = plt.subplots(7)
-        fig.suptitle('Data subplots')
-
-        x = [row[1] for row in imudata]
-        y = [row[2] for row in imudata]
-        axs[0].plot(x, y, label = "Gyro X-Axis DPS")
-
-        y = [row[3] for row in imudata]
-        axs[1].plot(x, y, label = "Accelerometer Z")
-
-        x = [row[1] for row in sidetofdata]
-        y = [row[2] for row in sidetofdata]
-        axs[2].plot(x, y, label = "Front Side Tof")
-        y = [row[3] for row in sidetofdata]
-        axs[2].plot(x, y, label = "Rear Side Tof")
-
-        x = [row[1] for row in frontdata]
-        y = [row[2] for row in frontdata]
-        axs[3].plot(x, y, label = "Forward Tof")
-
-        x = [row[1] for row in angledata]
-        y = [row[2] for row in angledata]
-        axs[4].plot(x, y, label = "Integrated Angle")
-
-        x = [row[1] for row in imuturndata]
-        y = [row[2] for row in imuturndata]
-        axs[5].plot(x, y, label = "Integrated Turn Degrees")
-        y = [row[3] for row in imuturndata]
-        axs[5].plot(x, y, label = "Degrees Turned")
-
-        x = [row[1] for row in photodata]
-        y = [row[2] for row in photodata]
-        axs[6].plot(x, y, label = "Photoresistor Voltage")
-
-        axs[0].legend()
-        axs[1].legend()
-        axs[2].legend()
-        axs[3].legend()
-        axs[4].legend()
-        axs[5].legend()
-        axs[6].legend()
-
         plt.show()
