@@ -10,11 +10,7 @@
 #include "imu_tracking.h"
 #include "ICM20948.h"
 #include "photoresistor.h"
-
-// General course correction constants
-#define SIDE_TOF_SEPARATION_MM 177 // Distance between the two side ToF sensors. TODO revise this
-#define CC_KP 0.1f // Proportional coefficient (unused)
-#define CC_KD 0.001f // Derivative coefficient (unused)
+#include "position_tracking.h"
 
 // Info for a straight-line section of the course.
 typedef struct {
@@ -217,7 +213,7 @@ void detect_wall_and_turn() {
 	if(ticks_at_start_of_sec == 0) {
 		ticks_at_start_of_sec = HAL_GetTick();
 	}
-	
+
 	// Don't do anything if it's before we want to start checking
 	if(HAL_GetTick() - ticks_at_start_of_sec < COURSE_SECTIONS[cur_course_sec].ticks_before_stop) {
 		return;
@@ -248,6 +244,23 @@ void detect_wall_and_turn() {
 			printf("At wall with angle = %d.%d\r\n", (int)(angle), (int)((angle - (int)angle * 1000)));
 		}
 
+		stop();
+		err = get_tof_rangedata_cts(FORWARD_TOF, &range);
+		int position_difference = range - COURSE_SECTIONS[cur_course_sec].front_stop_dist_mm;
+		if (abs(position_difference) > 2 * CONTROLLED_STOP_RANGE) {
+			add_front_tof_reading(position_difference);
+			controlled_stop();
+		}
+
+		turn_right_imu(90);
+		
+		uint16_t front_side, rear_side;
+		get_side_tof_readings(&front_side, &rear_side);
+		float theta = get_angle_with_wall(front_side, rear_side);
+
+		if (theta > TOF_ANGLE_CORRECTION_THRESHOLD) {
+			adjust_turn_tof();
+		}
 		// Execute right turn and continue on the next course section
 		cur_course_sec++;
 		if(cur_course_sec >= COURSE_NUM_SECTIONS) {
@@ -255,11 +268,6 @@ void detect_wall_and_turn() {
 			stop();
 			while(1);
 		}
-
-		stop();
-
-		turn_right_imu(90);
-		adjust_turn_tof();
 
 		// Reset ticks at start
 		ticks_at_start_of_sec = HAL_GetTick();
@@ -332,57 +340,51 @@ void course_correction() {
 	    }
 	}
 
-float get_angle_with_wall(uint16_t front_side, uint16_t rear_side) {
-	float angle = atan2((front_side - rear_side), SIDE_TOF_SEPARATION_MM) * RADIONS_TO_DEGREES;
-	return angle;
-}
-
 void adjust_turn_tof() { 
-
-	set_motor_id_speed(FRONT_RIGHT_MOTOR, 0);
-	set_motor_id_speed(REAR_RIGHT_MOTOR, 0);
-	set_motor_id_speed(FRONT_LEFT_MOTOR, 0);
-	set_motor_id_speed(REAR_LEFT_MOTOR, 0);
+	set_motors_to_stop();
 
 	uint16_t front_side = 0;
 	uint16_t rear_side = 0;
-	get_side_tof_readings(&front_side, &rear_side);
 
+	get_side_tof_readings(&front_side, &rear_side);
 	float theta = get_angle_with_wall(front_side, rear_side);
 
-	while (fabs(theta ) > ANGLE_CORRECTION_THRESHOLD) { // only correct if off by ANGLE_CORRECTION_THRESHOLD degrees, TODO: Tuning
-
-		if (front_side > rear_side) {
-			set_motor_id_speed(FRONT_RIGHT_MOTOR, TURNING_MOTOR_SPEED);
-			set_motor_id_speed(REAR_RIGHT_MOTOR, TURNING_MOTOR_SPEED);
-			set_motor_id_speed(FRONT_LEFT_MOTOR, TURNING_MOTOR_SPEED * -1);
-			set_motor_id_speed(REAR_LEFT_MOTOR, TURNING_MOTOR_SPEED * -1);
-		} else {
-			set_motor_id_speed(FRONT_RIGHT_MOTOR, TURNING_MOTOR_SPEED * -1);
-			set_motor_id_speed(REAR_RIGHT_MOTOR, TURNING_MOTOR_SPEED * -1);
-			set_motor_id_speed(FRONT_LEFT_MOTOR, TURNING_MOTOR_SPEED);
-			set_motor_id_speed(REAR_LEFT_MOTOR, TURNING_MOTOR_SPEED);
+	while (fabs(theta ) > ANGLE_CORRECTION_ADJUSTMENT_THRESHOLD) { // only correct if off by ANGLE_CORRECTION_ADJUSTMENT_THRESHOLD degrees, TODO: Tuning
+		int turning_speed = TURNING_MOTOR_SPEED;
+		if (theta < TOF_ANGLE_CORRECTION_THRESHOLD) {
+			// Go slower if angle to wall is small
+			turning_speed = TURN_CORRECTION_MOTOR_SPEED;
 		}
+	
+		if (front_side > rear_side) {
+			// turn to the left
+			set_motor_id_speed(FRONT_RIGHT_MOTOR, turning_speed);
+			set_motor_id_speed(REAR_RIGHT_MOTOR, turning_speed);
+			set_motor_id_speed(FRONT_LEFT_MOTOR, turning_speed * -1);
+			set_motor_id_speed(REAR_LEFT_MOTOR, turning_speed * -1);
+		} else {
+			// turn to the right
+			set_motor_id_speed(FRONT_RIGHT_MOTOR, turning_speed * -1);
+			set_motor_id_speed(REAR_RIGHT_MOTOR, turning_speed * -1);
+			set_motor_id_speed(FRONT_LEFT_MOTOR, turning_speed);
+			set_motor_id_speed(REAR_LEFT_MOTOR, turning_speed);
+		}
+
 		get_side_tof_readings(&front_side, &rear_side);
 		theta = get_angle_with_wall(front_side, rear_side);
 
-		if (fabs(theta ) > ANGLE_CORRECTION_THRESHOLD) {
-			set_motor_id_speed(FRONT_RIGHT_MOTOR, 0);
-			set_motor_id_speed(REAR_RIGHT_MOTOR, 0);
-			set_motor_id_speed(FRONT_LEFT_MOTOR, 0);
-			set_motor_id_speed(REAR_LEFT_MOTOR, 0);
+		if (fabs(theta ) < ANGLE_CORRECTION_ADJUSTMENT_THRESHOLD) {
+			set_motors_to_stop();
+			HAL_Delay(25);
 
+			// double check theta in case of drifting
 			get_side_tof_readings(&front_side, &rear_side);
 			theta = get_angle_with_wall(front_side, rear_side);
 		}
 	}
 
-	set_motor_id_speed(FRONT_RIGHT_MOTOR, 0);
-	set_motor_id_speed(REAR_RIGHT_MOTOR, 0);
-	set_motor_id_speed(FRONT_LEFT_MOTOR, 0);
-	set_motor_id_speed(REAR_LEFT_MOTOR, 0);
+	set_motors_to_stop();
 	return;
-
 }
 
 void controlled_stop() {
@@ -394,17 +396,40 @@ void controlled_stop() {
 		while(1);
 	}
 
-	int position_difference = range - COURSE_SECTIONS[cur_course_sec].front_stop_dist_mm;
+	int position_difference = range - (COURSE_SECTIONS[cur_course_sec].front_stop_dist_mm - CONTROLLED_STOP_DISTANCE_CORRECTION);
+	float total_position_error = get_front_tof_recent_diff();
 
-	while (abs(position_difference) > 100) { // 100 = 10cm, TODO: Tuning
-		float scaling_factor = ( (float) position_difference) * CC_KP;
-		set_motor_id_speed(FRONT_LEFT_MOTOR, (int) (BASE_MOTOR_SPEED * scaling_factor));
-		set_motor_id_speed(FRONT_RIGHT_MOTOR, (int) (BASE_MOTOR_SPEED * scaling_factor));
-		set_motor_id_speed(REAR_RIGHT_MOTOR, (int) (BASE_MOTOR_SPEED * scaling_factor));
-		set_motor_id_speed(REAR_LEFT_MOTOR, (int) (BASE_MOTOR_SPEED * scaling_factor));
+	// instantiated pre while loop for debugging
+	float scaling_factor = 0;
+	int motor_speed = 0;
+	while (abs(position_difference) > CONTROLLED_STOP_RANGE) {
+		scaling_factor = ( (float) position_difference) * CC_KP + total_position_error * CC_KI;
+		motor_speed = (int) (BASE_MOTOR_SPEED * scaling_factor);
+		
+		// Go at max half base speed when correcting
+		if (abs(motor_speed) > (BASE_MOTOR_SPEED / 2)) {
+			motor_speed = (BASE_MOTOR_SPEED / 2) * (scaling_factor < 0 ? -1 : 1);
+		}
+
+		// Dont go below minimum motor speed
+		if (abs(motor_speed) < MIN_MOTOR_SPEED) {
+			motor_speed = MIN_MOTOR_SPEED * (scaling_factor < 0 ? -1 : 1);
+		}
+
+		set_motor_id_speed(FRONT_LEFT_MOTOR, motor_speed);
+		set_motor_id_speed(FRONT_RIGHT_MOTOR, motor_speed);
+		set_motor_id_speed(REAR_RIGHT_MOTOR, motor_speed);
+		set_motor_id_speed(REAR_LEFT_MOTOR, motor_speed);
+
 		get_tof_rangedata_cts(FORWARD_TOF, &range);
-		position_difference = range - COURSE_SECTIONS[cur_course_sec].front_stop_dist_mm;
+		position_difference = range - (COURSE_SECTIONS[cur_course_sec].front_stop_dist_mm - CONTROLLED_STOP_DISTANCE_CORRECTION);
+
+		add_front_tof_reading(position_difference);
+		total_position_error = get_front_tof_recent_diff();
 	}
+
+	stop();
+	reset_position_tracking();
 	return;
 }
 
