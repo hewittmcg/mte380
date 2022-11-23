@@ -130,6 +130,7 @@ void turn_right_imu(uint16_t degrees) {
 	  set_motor_speed(&controllers[REAR_LEFT_MOTOR], x);
   }
 
+  adjust_turn_tof();
 
   set_motor_speed(&controllers[FRONT_RIGHT_MOTOR], 0);
   set_motor_speed(&controllers[REAR_RIGHT_MOTOR], 0);

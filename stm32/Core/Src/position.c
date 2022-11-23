@@ -13,7 +13,7 @@
 
 // General course correction constants
 #define SIDE_TOF_SEPARATION_MM 177 // Distance between the two side ToF sensors. TODO revise this
-#define CC_KP 0.01f // Proportional coefficient (unused)
+#define CC_KP 0.1f // Proportional coefficient (unused)
 #define CC_KD 0.001f // Derivative coefficient (unused)
 
 // Info for a straight-line section of the course.
@@ -258,14 +258,8 @@ void detect_wall_and_turn() {
 
 		stop();
 
-		// Adjust the amount we turn by the side ToF reading
-		uint16_t front = 0;
-		uint16_t rear = 0;
-		get_side_tof_readings(&front, &rear);
-		// Calculate angle robot is turned at (this should maybe be moved into its own function):
-		float cur_angle = atan2((front - rear), SIDE_TOF_SEPARATION_MM);
-
 		turn_right_imu(90);
+		adjust_turn_tof();
 
 		// Reset ticks at start
 		ticks_at_start_of_sec = HAL_GetTick();
@@ -337,6 +331,82 @@ void course_correction() {
 	        }
 	    }
 	}
+
+float get_angle_with_wall(uint16_t front_side, uint16_t rear_side) {
+	float angle = atan2((front_side - rear_side), SIDE_TOF_SEPARATION_MM) * RADIONS_TO_DEGREES;
+	return angle;
+}
+
+void adjust_turn_tof() { 
+
+	set_motor_id_speed(FRONT_RIGHT_MOTOR, 0);
+	set_motor_id_speed(REAR_RIGHT_MOTOR, 0);
+	set_motor_id_speed(FRONT_LEFT_MOTOR, 0);
+	set_motor_id_speed(REAR_LEFT_MOTOR, 0);
+
+	uint16_t front_side = 0;
+	uint16_t rear_side = 0;
+	get_side_tof_readings(&front_side, &rear_side);
+
+	float theta = get_angle_with_wall(front_side, rear_side);
+
+	while (fabs(theta ) > ANGLE_CORRECTION_THRESHOLD) { // only correct if off by ANGLE_CORRECTION_THRESHOLD degrees, TODO: Tuning
+
+		if (front_side > rear_side) {
+			set_motor_id_speed(FRONT_RIGHT_MOTOR, TURNING_MOTOR_SPEED);
+			set_motor_id_speed(REAR_RIGHT_MOTOR, TURNING_MOTOR_SPEED);
+			set_motor_id_speed(FRONT_LEFT_MOTOR, TURNING_MOTOR_SPEED * -1);
+			set_motor_id_speed(REAR_LEFT_MOTOR, TURNING_MOTOR_SPEED * -1);
+		} else {
+			set_motor_id_speed(FRONT_RIGHT_MOTOR, TURNING_MOTOR_SPEED * -1);
+			set_motor_id_speed(REAR_RIGHT_MOTOR, TURNING_MOTOR_SPEED * -1);
+			set_motor_id_speed(FRONT_LEFT_MOTOR, TURNING_MOTOR_SPEED);
+			set_motor_id_speed(REAR_LEFT_MOTOR, TURNING_MOTOR_SPEED);
+		}
+		get_side_tof_readings(&front_side, &rear_side);
+		theta = get_angle_with_wall(front_side, rear_side);
+
+		if (fabs(theta ) > ANGLE_CORRECTION_THRESHOLD) {
+			set_motor_id_speed(FRONT_RIGHT_MOTOR, 0);
+			set_motor_id_speed(REAR_RIGHT_MOTOR, 0);
+			set_motor_id_speed(FRONT_LEFT_MOTOR, 0);
+			set_motor_id_speed(REAR_LEFT_MOTOR, 0);
+
+			get_side_tof_readings(&front_side, &rear_side);
+			theta = get_angle_with_wall(front_side, rear_side);
+		}
+	}
+
+	set_motor_id_speed(FRONT_RIGHT_MOTOR, 0);
+	set_motor_id_speed(REAR_RIGHT_MOTOR, 0);
+	set_motor_id_speed(FRONT_LEFT_MOTOR, 0);
+	set_motor_id_speed(REAR_LEFT_MOTOR, 0);
+	return;
+
+}
+
+void controlled_stop() {
+	uint16_t range = 0;
+	VL53L0X_Error err = get_tof_rangedata_cts(FORWARD_TOF, &range);
+
+	if (err) {
+		stop();
+		while(1);
+	}
+
+	int position_difference = range - COURSE_SECTIONS[cur_course_sec].front_stop_dist_mm;
+
+	while (abs(position_difference) > 100) { // 100 = 10cm, TODO: Tuning
+		float scaling_factor = ( (float) position_difference) * CC_KP;
+		set_motor_id_speed(FRONT_LEFT_MOTOR, (int) (BASE_MOTOR_SPEED * scaling_factor));
+		set_motor_id_speed(FRONT_RIGHT_MOTOR, (int) (BASE_MOTOR_SPEED * scaling_factor));
+		set_motor_id_speed(REAR_RIGHT_MOTOR, (int) (BASE_MOTOR_SPEED * scaling_factor));
+		set_motor_id_speed(REAR_LEFT_MOTOR, (int) (BASE_MOTOR_SPEED * scaling_factor));
+		get_tof_rangedata_cts(FORWARD_TOF, &range);
+		position_difference = range - COURSE_SECTIONS[cur_course_sec].front_stop_dist_mm;
+	}
+	return;
+}
 
 int get_tof_status(TofSensor sensor) {
 	return tof_status.data_ready[sensor];
