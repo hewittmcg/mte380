@@ -14,9 +14,10 @@
 #define SIDE_TOF_SEPARATION_MM 177 // Distance between the two side ToF sensors. TODO revise this
 
 // ToF calibration info.
-#define STOPPING_DISTANCE_MM 160 // original - 240 TODO: Tuning
-#define BOARD_SQUARE_SIZE_MM 300 // original - 300
-#define TOF_BASE_SIDE_DIST_MM 100 // distance from the side TOFs to the edge of the board. Need to revisit.
+#define STOPPING_DISTANCE_MM 200 // original - 240 TODO: Tuning
+#define BOARD_SQUARE_SIZE_MM 305 // original - 300
+#define TOF_BASE_SIDE_DIST_MM 90 // distance from the side TOFs to the edge of the board. Need to revisit.
+#define TOF_STOPPING_DISTANCE_OFFSET 0
 
 // Motor speed values.
 #define BASE_MOTOR_SPEED 85
@@ -51,6 +52,6 @@
 #define CC_KP 0.003f // Proportional coefficient (unused)
 #define CC_KI 0.005f // Derivative coefficient (unused)
 #define CONTROLLED_STOP_RANGE 25 // TODO: Tuning
-#define CONTROLLED_STOP_DISTANCE_CORRECTION 60
+#define CONTROLLED_STOP_DISTANCE_CORRECTION 100
 
 #endif /* INC_CONSTANTS_H_ */

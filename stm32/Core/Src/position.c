@@ -51,50 +51,50 @@ static const CourseSec COURSE_SECTIONS[COURSE_NUM_SECTIONS] = {
 		.speed_scaling_percent = 1.0,
 	},
 	{
-		.front_stop_dist_mm = STOPPING_DISTANCE_MM + BOARD_SQUARE_SIZE_MM - 55,
+		.front_stop_dist_mm = STOPPING_DISTANCE_MM + BOARD_SQUARE_SIZE_MM,
 		.side_dist_mm = TOF_BASE_SIDE_DIST_MM,
 		.ticks_before_stop = (3 * COURSE_SEC_LEN_M) / EST_MAX_SPEED * MS_PER_SEC,
 		.speed_scaling_percent = 1.0,
 	},
 	{
-		.front_stop_dist_mm = STOPPING_DISTANCE_MM + BOARD_SQUARE_SIZE_MM - 55,
+		.front_stop_dist_mm = STOPPING_DISTANCE_MM + BOARD_SQUARE_SIZE_MM + TOF_STOPPING_DISTANCE_OFFSET,
 		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + BOARD_SQUARE_SIZE_MM,
 		.ticks_before_stop = (3 * COURSE_SEC_LEN_M) / EST_MAX_SPEED * MS_PER_SEC,
 		.speed_scaling_percent = 1.00,
 		
 	},
 	{
-		.front_stop_dist_mm = STOPPING_DISTANCE_MM + BOARD_SQUARE_SIZE_MM - 55,
+		.front_stop_dist_mm = STOPPING_DISTANCE_MM + BOARD_SQUARE_SIZE_MM + TOF_STOPPING_DISTANCE_OFFSET,
 		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + BOARD_SQUARE_SIZE_MM,
 		.ticks_before_stop = (2 * COURSE_SEC_LEN_M) / EST_MAX_SPEED * MS_PER_SEC,
 		.speed_scaling_percent = 1.00,
 	},
 	{
-		.front_stop_dist_mm = STOPPING_DISTANCE_MM + BOARD_SQUARE_SIZE_MM - 55,
+		.front_stop_dist_mm = STOPPING_DISTANCE_MM + BOARD_SQUARE_SIZE_MM + TOF_STOPPING_DISTANCE_OFFSET,
 		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + BOARD_SQUARE_SIZE_MM,
 		.ticks_before_stop = (2 * COURSE_SEC_LEN_M) / EST_MAX_SPEED * MS_PER_SEC,
 		.speed_scaling_percent = 1.00,
 	},
 	{
-		.front_stop_dist_mm = STOPPING_DISTANCE_MM + 2*BOARD_SQUARE_SIZE_MM - 55,
+		.front_stop_dist_mm = STOPPING_DISTANCE_MM + 2*BOARD_SQUARE_SIZE_MM + 2*TOF_STOPPING_DISTANCE_OFFSET,
 		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + BOARD_SQUARE_SIZE_MM,
 		.ticks_before_stop = (1 * COURSE_SEC_LEN_M) / EST_MAX_SPEED * MS_PER_SEC,
 		.speed_scaling_percent = 1.00,
 	},
 	{
-		.front_stop_dist_mm = STOPPING_DISTANCE_MM + 2*BOARD_SQUARE_SIZE_MM - 25,
+		.front_stop_dist_mm = STOPPING_DISTANCE_MM + 2*BOARD_SQUARE_SIZE_MM + 2*TOF_STOPPING_DISTANCE_OFFSET,
 		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + 2*BOARD_SQUARE_SIZE_MM,
 		.ticks_before_stop = (1 * COURSE_SEC_LEN_M) / EST_MAX_SPEED * MS_PER_SEC,
 		.speed_scaling_percent = 1.00,
 	},
 	{
-		.front_stop_dist_mm = STOPPING_DISTANCE_MM + 2*BOARD_SQUARE_SIZE_MM + 20,
+		.front_stop_dist_mm = STOPPING_DISTANCE_MM + 2*BOARD_SQUARE_SIZE_MM + 2*TOF_STOPPING_DISTANCE_OFFSET,
 		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + 2*BOARD_SQUARE_SIZE_MM,
 		.ticks_before_stop = (0 * COURSE_SEC_LEN_M) / EST_MAX_SPEED * MS_PER_SEC,
 		.speed_scaling_percent = 1.00,
 	},
 	{
-		.front_stop_dist_mm = STOPPING_DISTANCE_MM + 2*BOARD_SQUARE_SIZE_MM + 20,
+		.front_stop_dist_mm = STOPPING_DISTANCE_MM + 2*BOARD_SQUARE_SIZE_MM + 2*TOF_STOPPING_DISTANCE_OFFSET,
 		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + 2*BOARD_SQUARE_SIZE_MM,
 		.ticks_before_stop = (0 * COURSE_SEC_LEN_M) / EST_MAX_SPEED * MS_PER_SEC,
 		.speed_scaling_percent = 1.00,
@@ -248,7 +248,7 @@ void detect_wall_and_turn() {
 		float angle = get_gyro_recent_x_diff();
 
 		log_item(LOG_SOURCE_PIT_DETECT, HAL_GetTick(), angle, volt);
-		if(angle <= -2.0f) {
+		if(angle <= -4.0f) {
 			printf("In pit with angle = %d.%d\r\n", (int)(angle), (int)((angle - (int)angle * 1000)));
 			return;
 		} else {
@@ -256,22 +256,31 @@ void detect_wall_and_turn() {
 		}
 
 		stop();
+		// Just testing: check if we're in sand after 300 ms and continue
+		HAL_Delay(300);
+		if(in_sand(&volt)) {
+			move_forward(BASE_MOTOR_SPEED / 2);
+			return;
+		}
 		err = get_tof_rangedata_cts(FORWARD_TOF, &range);
 		int position_difference = range - COURSE_SECTIONS[cur_course_sec].front_stop_dist_mm;
 		if (abs(position_difference) > 2 * CONTROLLED_STOP_RANGE) {
 			add_front_tof_reading(position_difference);
 			controlled_stop();
 		}
-
 		turn_right_imu(90);
 		
-		uint16_t front_side, rear_side;
-		get_side_tof_readings(&front_side, &rear_side);
-		float theta = get_angle_with_wall(front_side, rear_side);
+		// Don't adjust in centre, inaccurate
+		if(cur_course_sec > 6) {
+			uint16_t front_side, rear_side;
+			get_side_tof_readings(&front_side, &rear_side);
+			float theta = get_angle_with_wall(front_side, rear_side);
 
-		if (theta > TOF_ANGLE_CORRECTION_THRESHOLD) {
-			adjust_turn_tof();
+			if (theta > TOF_ANGLE_CORRECTION_THRESHOLD) {
+				adjust_turn_tof();
+			}
 		}
+
 		// Execute right turn and continue on the next course section
 		cur_course_sec++;
 		if(cur_course_sec >= COURSE_NUM_SECTIONS) {
@@ -351,6 +360,11 @@ void course_correction() {
 	            set_motor_id_speed(REAR_LEFT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
 	        }
 	    }
+	uint16_t dummy;
+	if(in_sand(&dummy)) {
+		set_motor_id_speed(FRONT_RIGHT_MOTOR, 100);
+		set_motor_id_speed(FRONT_LEFT_MOTOR, 100);
+	}
 }
 
 // Gets the angle between the left side of the vehicle and the wall
@@ -447,8 +461,9 @@ void controlled_stop() {
 		total_position_error = get_front_tof_recent_diff();
 	}
 
-	stop();
+	set_motors_to_stop();
 	reset_position_tracking();
+	HAL_Delay(300);
 	return;
 }
 

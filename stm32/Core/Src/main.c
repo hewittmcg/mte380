@@ -32,6 +32,7 @@
 #include "ICM20948.h"
 #include "logger.h"
 #include "imu_tracking.h"
+#include "photoresistor.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
