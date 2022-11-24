@@ -185,13 +185,6 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-//	for(int i = 0; i < 50; i++) {
-//		log_item(LOG_SOURCE_GENERAL, HAL_GetTick(), i, 2*i);
-//	}
-//	while(1) {
-//		while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
-//		log_output();
-//	}
 	while (1)
 	{
 		// Wait for button press before starting to move.
