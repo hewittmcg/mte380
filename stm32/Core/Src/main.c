@@ -79,7 +79,7 @@ UART_HandleTypeDef huart6;
 #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
 #endif
 
-#define PRINTF_UART_HANDLE &huart6
+#define PRINTF_UART_HANDLE &huart2
 PUTCHAR_PROTOTYPE
 {
   HAL_UART_Transmit(PRINTF_UART_HANDLE, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
@@ -199,9 +199,11 @@ int main(void)
 		  if(get_tof_status(FRONT_SIDE_TOF) && get_tof_status(REAR_SIDE_TOF)) {
 				  course_correction();
 		  }
+      #if 0
 		  if(get_tof_status(FORWARD_TOF)) {
 			detect_wall_and_turn();
 		  }
+      #endif
 			add_gyro_x_reading();
 		}
 

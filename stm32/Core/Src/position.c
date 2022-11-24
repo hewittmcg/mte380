@@ -112,7 +112,7 @@ static TofStatus tof_status;
 
 // ToF sensor device mappings
 static VL53L0X_Dev_t TOF_I2C[NUM_TOFS] = {0};
-static int TOF_CALIBRATION_DIST[NUM_TOFS] = {44000, 39000, 27000};
+static int TOF_CALIBRATION_DIST[NUM_TOFS] = {41000, 42000, 40000};
 static struct TOF_Calibration TOFs[NUM_TOFS] = {0};
 
 // Handle external interrupt from ToF sensors
@@ -263,13 +263,14 @@ void detect_wall_and_turn() {
 			return;
 		}
 		err = get_tof_rangedata_cts(FORWARD_TOF, &range);
-		int position_difference = range - COURSE_SECTIONS[cur_course_sec].front_stop_dist_mm;
+		int position_difference = range - (COURSE_SECTIONS[cur_course_sec].front_stop_dist_mm - CONTROLLED_STOP_DISTANCE_CORRECTION);
 		if (abs(position_difference) > 2 * CONTROLLED_STOP_RANGE) {
 			add_front_tof_reading(position_difference);
 			controlled_stop();
 		}
 		turn_right_imu(90);
 		
+#if 0
 		// Don't adjust in centre, inaccurate
 		if(cur_course_sec > 6) {
 			uint16_t front_side, rear_side;
@@ -280,6 +281,7 @@ void detect_wall_and_turn() {
 				adjust_turn_tof();
 			}
 		}
+#endif
 
 		// Execute right turn and continue on the next course section
 		cur_course_sec++;
@@ -306,60 +308,51 @@ static inline float calc_centre_dist(float dist_front, float dist_rear) {
 	return dist_rear*cos(theta) + SIDE_TOF_SEPARATION_MM/2 * sin(theta);
 }
 
+// WE WILL NEED TO RESET THESE WHEN WE TURN!!!!!!!
+static float prev_error = 0;
+static float prev_dist = 0;
+static uint32_t prev_ticks = 0;
+static float integrated = 0;
+static float derived = 0;
+
+#define TEST_KI 0.05f
+#define TEST_KP 5.0f
+#define TEST_KD 0.03f
+
 void course_correction() {
 	uint16_t front = 0;
 	uint16_t rear = 0;
 	get_side_tof_readings(&front, &rear);
 
+	// Calculate distance to wall
+	float cur_dist = calc_centre_dist(front, rear);
+
+	// Reset at the start
+	if(prev_ticks == 0) {
+		prev_ticks = HAL_GetTick();
+		prev_dist = cur_dist;
+		return;
+	}
+
+	uint32_t cur_ticks = HAL_GetTick();
 	log_item(LOG_SOURCE_SIDE_TOFS, HAL_GetTick(), front, rear);
 
-	if (front > rear) {
-	        if(rear - COURSE_SECTIONS[cur_course_sec].side_dist_mm < (-15)){}
-	        else if(rear - COURSE_SECTIONS[cur_course_sec].side_dist_mm > (15)){
-	            float x = 0.5;
-	            set_motor_id_speed(FRONT_RIGHT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
-	            set_motor_id_speed(REAR_RIGHT_MOTOR, (int)((1+x)* BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
+	float error = cur_dist - 300;
 
-	            set_motor_id_speed(FRONT_LEFT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
-	            set_motor_id_speed(REAR_LEFT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
-	        }
-	        else{
-	            float x = (float)(front - rear)/(float)front * CORRECTION_FACTOR;
-	            if(1 - x < 0) {
-	                x = 1;
-	            }
+	integrated += (error + prev_error)/2 * (float)(cur_ticks - prev_ticks) / 1000.0f;
 
-	            set_motor_id_speed(FRONT_RIGHT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
-	            set_motor_id_speed(REAR_RIGHT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
+	derived += (error - prev_error) / ((float)(cur_ticks - prev_ticks) / 1000.0f);
 
-	            set_motor_id_speed(FRONT_LEFT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
-	            set_motor_id_speed(REAR_LEFT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
-	        }
-	    }
+	float correction_factor = error * TEST_KP + integrated * TEST_KI;
 
-	if (rear > front) {
-	        if(front - COURSE_SECTIONS[cur_course_sec].side_dist_mm > 15){}
-	        else if(front - COURSE_SECTIONS[cur_course_sec].side_dist_mm < - 15){
-	            float x = 0.5;
-	            set_motor_id_speed(FRONT_RIGHT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
-	            set_motor_id_speed(REAR_RIGHT_MOTOR, (int)((1-x)* BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
+	printf("Error: %d, integrated: %d, derived %d, correction factor %d\r\n", (int)(error * TEST_KP), (int)(integrated * TEST_KI), (int)(derived * TEST_KD), (int)correction_factor);
 
-	            set_motor_id_speed(FRONT_LEFT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
-	            set_motor_id_speed(REAR_LEFT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
-	        }
-	        else{
-	            float x = (float)(rear - front)/(float)rear * CORRECTION_FACTOR;
-	            if(1 - x < 0) {
-	                x = 1;
-	            }
+	// Correction factor will be positive (based on error) if we are too far to the right and need to power the right motors more
+	set_motor_id_speed(FRONT_RIGHT_MOTOR, (int)(BASE_MOTOR_SPEED + correction_factor));
+	set_motor_id_speed(REAR_RIGHT_MOTOR, (int)(BASE_MOTOR_SPEED + correction_factor));
+	set_motor_id_speed(FRONT_LEFT_MOTOR, (int)(BASE_MOTOR_SPEED - correction_factor));
+	set_motor_id_speed(REAR_LEFT_MOTOR, (int)(BASE_MOTOR_SPEED - correction_factor));
 
-	            set_motor_id_speed(FRONT_RIGHT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
-	            set_motor_id_speed(REAR_RIGHT_MOTOR, (int)((1-x)* BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
-
-	            set_motor_id_speed(FRONT_LEFT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
-	            set_motor_id_speed(REAR_LEFT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
-	        }
-	    }
 	uint16_t dummy;
 	if(in_sand(&dummy)) {
 		set_motor_id_speed(FRONT_RIGHT_MOTOR, 100);
