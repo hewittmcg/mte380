@@ -172,11 +172,6 @@ int main(void)
   MX_USART6_UART_Init();
   /* USER CODE BEGIN 2 */
 
-	// Initialize ToF sensors
-	TOF_Init(&hi2c1, FRONT_SIDE_TOF);
-	TOF_Init(&hi2c2, REAR_SIDE_TOF);
-	TOF_Init(&hi2c3, FORWARD_TOF);
-
 	movement_init(controllers);
 
 	// Initialize IMU
@@ -187,8 +182,28 @@ int main(void)
   /* USER CODE BEGIN WHILE */
 	while (1)
 	{
+		// Wait for calibration to have been ran
+		while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
+		// Initialize ToF sensors for calibration
+		TOF_Init_Cal(&hi2c1, FRONT_SIDE_TOF);
+		TOF_Init_Cal(&hi2c2, REAR_SIDE_TOF);
+		TOF_Init_Cal(&hi2c3, FORWARD_TOF);
+
+		run_tof_calibration(100);
+
+		// Initialize ToF sensors for cont. ranging
+		TOF_Init(&hi2c1, FRONT_SIDE_TOF);
+		TOF_Init(&hi2c2, REAR_SIDE_TOF);
+		TOF_Init(&hi2c3, FORWARD_TOF);
+
+		// Set LED On to inform initialization complete
+		HAL_GPIO_WritePin(GPIOA, LD2_Pin, GPIO_PIN_SET);
+
 		// Wait for button press before starting to move.
 		while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
+
+		// Led Reset
+		HAL_GPIO_WritePin(GPIOA, LD2_Pin, GPIO_PIN_RESET);
 		HAL_Delay(1000);
 		move_forward(BASE_MOTOR_SPEED);
 

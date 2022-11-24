@@ -164,11 +164,55 @@ void TOF_Init(I2C_HandleTypeDef *hi2c, TofSensor sensor){
 	VL53L0X_ClearInterruptMask(&TOF_I2C[sensor], VL53L0X_REG_SYSTEM_INTERRUPT_GPIO_NEW_SAMPLE_READY);
 }
 
+void TOF_Init_Cal(I2C_HandleTypeDef *hi2c, TofSensor sensor){
+	TOF_I2C[sensor].I2cHandle = hi2c;
+	TOF_I2C[sensor].I2cDevAddr = 0x52;
+
+	// VL53L0X init for Single Measurement
+	VL53L0X_WaitDeviceBooted(&TOF_I2C[sensor]);
+	VL53L0X_DataInit(&TOF_I2C[sensor]);
+	VL53L0X_StaticInit(&TOF_I2C[sensor]);
+	VL53L0X_PerformRefCalibration(&TOF_I2C[sensor], &TOFs[sensor].VhvSettings, &TOFs[sensor].PhaseCal);
+	VL53L0X_PerformRefSpadManagement(&TOF_I2C[sensor], &TOFs[sensor].refSpadCount, &TOFs[sensor].isApertureSpads);
+	VL53L0X_SetOffsetCalibrationDataMicroMeter(&TOF_I2C[sensor], TOF_CALIBRATION_DIST[sensor]);
+	VL53L0X_SetDeviceMode(&TOF_I2C[sensor], VL53L0X_DEVICEMODE_SINGLE_RANGING);
+
+	// Enable/Disable Sigma and Signal check
+	VL53L0X_SetLimitCheckEnable(&TOF_I2C[sensor], VL53L0X_CHECKENABLE_SIGMA_FINAL_RANGE, 1);
+	VL53L0X_SetLimitCheckEnable(&TOF_I2C[sensor], VL53L0X_CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, 1);
+	VL53L0X_SetLimitCheckValue(&TOF_I2C[sensor], VL53L0X_CHECKENABLE_SIGNAL_RATE_FINAL_RANGE, (FixPoint1616_t)(0.1*65536));
+	VL53L0X_SetLimitCheckValue(&TOF_I2C[sensor], VL53L0X_CHECKENABLE_SIGMA_FINAL_RANGE, (FixPoint1616_t)(60*65536));
+	VL53L0X_SetMeasurementTimingBudgetMicroSeconds(&TOF_I2C[sensor], 33000);
+	VL53L0X_SetVcselPulsePeriod(&TOF_I2C[sensor], VL53L0X_VCSEL_PERIOD_PRE_RANGE, 18);
+	VL53L0X_SetVcselPulsePeriod(&TOF_I2C[sensor], VL53L0X_VCSEL_PERIOD_FINAL_RANGE, 14);
+
+}
+
 void calibrate_tof(int32_t *forward_offset, int32_t *fs_offset, int32_t *rs_offset) {
 	FixPoint1616_t cal_dist = 300 << 16;
 	VL53L0X_PerformOffsetCalibration(&TOF_I2C[FORWARD_TOF], cal_dist, forward_offset);
 	VL53L0X_PerformOffsetCalibration(&TOF_I2C[FRONT_SIDE_TOF], cal_dist, fs_offset);
 	VL53L0X_PerformOffsetCalibration(&TOF_I2C[REAR_SIDE_TOF], cal_dist, rs_offset);
+}
+
+void run_tof_calibration(int cal_num){
+	int32_t forward_off, fs_off, rs_off;
+	int32_t forward_avg, fs_avg, rs_avg;
+
+	for(int i = 0; i < cal_num; i++){
+		calibrate_tof(&forward_off, &fs_off, &rs_off);
+		forward_avg += forward_off;
+		fs_avg += fs_off;
+		rs_avg += rs_off;
+	}
+
+	forward_avg = forward_avg/cal_num;
+	fs_avg = fs_avg/cal_num;
+	rs_avg = rs_avg/cal_num;
+
+	VL53L0X_SetOffsetCalibrationDataMicroMeter(&TOF_I2C[FORWARD_TOF], forward_avg);
+	VL53L0X_SetOffsetCalibrationDataMicroMeter(&TOF_I2C[FRONT_SIDE_TOF], fs_avg);
+	VL53L0X_SetOffsetCalibrationDataMicroMeter(&TOF_I2C[REAR_SIDE_TOF], rs_avg);
 }
 // Read data from the given ToF sensor and set the pointer passed in to the range, returning any errors.
 // To be called when using continuous ranging with interrupts.
