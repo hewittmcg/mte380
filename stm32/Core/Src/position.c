@@ -238,12 +238,12 @@ void detect_wall_and_turn() {
 
 	if(range < COURSE_SECTIONS[cur_course_sec].front_stop_dist_mm) {
 		// If in sand, ignore reading until we're out
-		if(sand) {
-			HAL_GPIO_WritePin(GPIOA, LD2_Pin, GPIO_PIN_SET);
-			return;
-		} else {
-			HAL_GPIO_WritePin(GPIOA, LD2_Pin, GPIO_PIN_RESET);
-		}
+//		if(sand) {
+//			HAL_GPIO_WritePin(GPIOA, LD2_Pin, GPIO_PIN_SET);
+//			return;
+//		} else {
+//			HAL_GPIO_WritePin(GPIOA, LD2_Pin, GPIO_PIN_RESET);
+//		}
 		// Check whether we are in a pit and ignore the reading if so
 		float angle = get_gyro_recent_x_diff();
 
@@ -315,14 +315,17 @@ static uint32_t prev_ticks = 0;
 static float integrated = 0;
 static float derived = 0;
 
-#define TEST_KI 0.05f
-#define TEST_KP 5.0f
-#define TEST_KD 0.03f
+#define TEST_KI 0.015f
+#define TEST_KD 0.005f
 
 void course_correction() {
+	int TEST_KP = 1.0f;
 	uint16_t front = 0;
 	uint16_t rear = 0;
 	get_side_tof_readings(&front, &rear);
+
+	// TODO make this not fabs
+	float theta = (get_angle_with_wall(front, rear));
 
 	// Calculate distance to wall
 	float cur_dist = calc_centre_dist(front, rear);
@@ -337,32 +340,59 @@ void course_correction() {
 	uint32_t cur_ticks = HAL_GetTick();
 	log_item(LOG_SOURCE_SIDE_TOFS, HAL_GetTick(), front, rear);
 
-	float error = cur_dist - 300;
+	float error = cur_dist - TOF_BASE_SIDE_DIST_MM;
 
 	integrated += (error + prev_error)/2 * (float)(cur_ticks - prev_ticks) / 1000.0f;
 
-	derived += (error - prev_error) / ((float)(cur_ticks - prev_ticks) / 1000.0f);
+	derived = (error - prev_error) / ((float)(cur_ticks - prev_ticks) / 1000.0f);
 
-	float correction_factor = error * TEST_KP + integrated * TEST_KI;
+	if (abs(cur_dist - TOF_BASE_SIDE_DIST_MM) > 50) {
+		TEST_KP = 2.0f;
+	}
 
-	printf("Error: %d, integrated: %d, derived %d, correction factor %d\r\n", (int)(error * TEST_KP), (int)(integrated * TEST_KI), (int)(derived * TEST_KD), (int)correction_factor);
+	// TODO make this not fabs
+	float desired_angle = (atan((cur_dist - TOF_BASE_SIDE_DIST_MM) / 100) * RADIONS_TO_DEGREES);
+	float correction_factor = error * TEST_KP + integrated * TEST_KI + derived * TEST_KD;
+	printf(
+		"Theta: %d.%d, Desired Angle: %d.%d \r\n", 
+		(int) theta, (int) ((theta - (int) theta) * 1000),
+		(int) desired_angle, (int) ((desired_angle - (int) desired_angle) * 1000)
+	);
+	// if theta and desired are same sign, we care, else we dont
+	
+	// TODO this should check against desired angle i think, not just raw value
+	if (theta > 10) {
+		if (cur_dist > TOF_BASE_SIDE_DIST_MM) {
+			correction_factor = theta > desired_angle ? -50 : 50;
+		} else {
+			correction_factor = theta > desired_angle ? 50 : -50;
+		}
+	}
+	float right_motor_factor = 0.9;
+
 
 	// Correction factor will be positive (based on error) if we are too far to the right and need to power the right motors more
-	set_motor_id_speed(FRONT_RIGHT_MOTOR, (int)(BASE_MOTOR_SPEED + correction_factor));
-	set_motor_id_speed(REAR_RIGHT_MOTOR, (int)(BASE_MOTOR_SPEED + correction_factor));
+	correction_factor = abs(correction_factor) > 70 ? 70 * correction_factor / abs(correction_factor) : correction_factor;
+
+	printf("Error: %d, integrated: %d, derived %d, correction factor %d, Current distance: %d\r\n", 
+			(int)(error * TEST_KP), (int)(integrated * TEST_KI), (int)(derived * TEST_KD), (int)correction_factor, (int) cur_dist);
+
+
+	set_motor_id_speed(FRONT_RIGHT_MOTOR, (int)((BASE_MOTOR_SPEED + correction_factor) * right_motor_factor));
+	set_motor_id_speed(REAR_RIGHT_MOTOR, (int)((BASE_MOTOR_SPEED + correction_factor) * right_motor_factor));
 	set_motor_id_speed(FRONT_LEFT_MOTOR, (int)(BASE_MOTOR_SPEED - correction_factor));
 	set_motor_id_speed(REAR_LEFT_MOTOR, (int)(BASE_MOTOR_SPEED - correction_factor));
 
-	uint16_t dummy;
-	if(in_sand(&dummy)) {
-		set_motor_id_speed(FRONT_RIGHT_MOTOR, 100);
-		set_motor_id_speed(FRONT_LEFT_MOTOR, 100);
-	}
+	// uint16_t dummy;
+	// if(in_sand(&dummy)) {
+	// 	set_motor_id_speed(FRONT_RIGHT_MOTOR, 100);
+	// 	set_motor_id_speed(FRONT_LEFT_MOTOR, 100);
+	// }
 }
 
 // Gets the angle between the left side of the vehicle and the wall
 float get_angle_with_wall(uint16_t front_side, uint16_t rear_side) {
-	return atan2((front_side - rear_side), SIDE_TOF_SEPARATION_MM) * RADIONS_TO_DEGREES;
+	return atan((rear_side - front_side)/(float)SIDE_TOF_SEPARATION_MM) * RADIONS_TO_DEGREES;
 }
 
 

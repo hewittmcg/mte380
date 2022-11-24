@@ -16,7 +16,8 @@
 // ToF calibration info.
 #define STOPPING_DISTANCE_MM 200 // original - 240 TODO: Tuning
 #define BOARD_SQUARE_SIZE_MM 305 // original - 300
-#define TOF_BASE_SIDE_DIST_MM 90 // distance from the side TOFs to the edge of the board. Need to revisit.
+#define TOF_BASE_SIDE_DIST_MM 300 // distance from the side TOFs to the edge of the board. Need to revisit.
+    // best side dist: 120 so far
 #define TOF_STOPPING_DISTANCE_OFFSET 0
 
 // Motor speed values.
@@ -41,7 +42,7 @@
 
 // Photoresistor bounds
 #define PHOTORESISTOR_ABS_UPPER_BOUND 4200
-#define PHOTORESISTOR_THRESHOLD 2300
+#define PHOTORESISTOR_THRESHOLD 900
 
 // Turning Correction Values
 #define ANGLE_CORRECTION_ADJUSTMENT_THRESHOLD 5
