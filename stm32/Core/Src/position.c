@@ -13,11 +13,6 @@
 #include "position_tracking.h"
 #include "logger.h"
 
-// General course correction constants
-#define SIDE_TOF_SEPARATION_MM 177 // Distance between the two side ToF sensors. TODO revise this
-#define CC_KP 0.01f // Proportional coefficient (unused)
-#define CC_KD 0.001f // Derivative coefficient (unused)
-
 // Info for a straight-line section of the course.
 typedef struct {
 	uint16_t front_stop_dist_mm;
@@ -356,7 +351,13 @@ void course_correction() {
 	            set_motor_id_speed(REAR_LEFT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
 	        }
 	    }
-	}
+}
+
+// Gets the angle between the left side of the vehicle and the wall
+float get_angle_with_wall(uint16_t front_side, uint16_t rear_side) {
+	return atan2((front_side - rear_side), SIDE_TOF_SEPARATION_MM) * RADIONS_TO_DEGREES;
+}
+
 
 void adjust_turn_tof() { 
 	set_motors_to_stop();

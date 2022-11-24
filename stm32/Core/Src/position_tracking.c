@@ -15,6 +15,7 @@
 #include <inttypes.h>
 #include "stm32f4xx_hal.h"
 #include "constants.h"
+#include <string.h>
 
  // IMU reading definition
 typedef struct {

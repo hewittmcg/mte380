@@ -14,8 +14,3 @@ void critical_section_end(bool enabled) {
 		__enable_irq();
 	}
 }
-
-// Gets the angle between the left side of the vehicle and the wall 
-float get_angle_with_wall(uint16_t front_side, uint16_t rear_side) {
-	return atan2((front_side - rear_side), SIDE_TOF_SEPARATION_MM) * RADIONS_TO_DEGREES;
-}
