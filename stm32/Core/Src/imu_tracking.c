@@ -9,6 +9,7 @@
  #include "ICM20948.h"
  #include "stm32f4xx_hal.h"
  #include "constants.h"
+#include "logger.h"
 
  // IMU reading definition
 typedef struct {
@@ -42,6 +43,10 @@ void add_gyro_x_reading(void) {
 	if(cur_imu_reading_idx >= NUM_IMU_READINGS) {
 		cur_imu_reading_idx = 0;
 	}
+	axises accel;
+	icm20948_accel_read(&accel);
+
+	log_item(LOG_SOURCE_IMU, HAL_GetTick(), data.x, accel.z);
 }
 
 // Calculate the recent x angle across the stored IMU readings.
@@ -73,6 +78,7 @@ float get_gyro_recent_x_diff(void) {
 				* (imu_reading_storage[next_idx].ticks - imu_reading_storage[cur_idx].ticks) / MS_PER_SEC;
 		total_angle += increment;
 	}
+
 
 	return total_angle;
 }

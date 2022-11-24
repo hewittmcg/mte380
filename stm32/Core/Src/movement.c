@@ -1,6 +1,7 @@
 #include "movement.h"
 #include "constants.h"
 #include "ICM20948.h"
+#include "logger.h"
 #include <stdlib.h>
 
 #define ACCELERATION_INCREMENT 10
@@ -95,6 +96,7 @@ void turn_right() {
 
 void turn_right_imu(uint16_t degrees) {
 	// Read from the IMU and numerically integrate to get the number of degrees
+  log_item(LOG_SOURCE_TURN_STARTING, HAL_GetTick(), 0, 0);
   axises gyro_reading;
   float degrees_turned = 0;
 
@@ -136,6 +138,7 @@ void turn_right_imu(uint16_t degrees) {
 		  // If we've overshot the target, turn back to it
 		  turning_speed = IMU_TURN_CORRECTION_SPEED * (error > 0 ? 1 : -1);
 	  }
+	  log_item(LOG_SOURCE_IMU_TURN, HAL_GetTick(), cur_degrees, degrees_turned);
 
 	  // Scale motors as we reach the reading
 	  set_motor_id_speed(FRONT_RIGHT_MOTOR, (-1)*turning_speed);
