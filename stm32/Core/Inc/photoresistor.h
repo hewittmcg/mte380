@@ -9,7 +9,6 @@
 #define INC_PHOTORESISTOR_H_
 
 //Uses photoresistor to determine if robot is in pit
-bool in_sand(void);
-
+bool in_sand(uint16_t *voltage);
 
 #endif /* INC_PHOTORESISTOR_H_ */

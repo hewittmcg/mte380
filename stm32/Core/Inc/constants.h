@@ -16,7 +16,7 @@
 #define TOF_BASE_SIDE_DIST_MM 100 // distance from the side TOFs to the edge of the board. Need to revisit.
 
 // Motor speed values.
-#define BASE_MOTOR_SPEED 100
+#define BASE_MOTOR_SPEED 85
 #define TURNING_MOTOR_SPEED 100
 
 #define MOTOR_BRAKE_SPEED 30

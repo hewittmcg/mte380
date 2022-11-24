@@ -10,6 +10,7 @@
 #include "imu_tracking.h"
 #include "ICM20948.h"
 #include "photoresistor.h"
+#include "logger.h"
 
 // General course correction constants
 #define SIDE_TOF_SEPARATION_MM 177 // Distance between the two side ToF sensors. TODO revise this
@@ -231,9 +232,17 @@ void detect_wall_and_turn() {
 		while(1);
 	}
 
+	uint16_t volt = 0;
+	bool sand;
+	sand = in_sand(&volt);
+
+	log_item(LOG_SOURCE_FORWARD_TOF, HAL_GetTick(), range, 0);
+	log_item(LOG_SOURCE_PIT_DETECT, HAL_GetTick(), get_gyro_recent_x_diff(), volt);
+
+
 	if(range < COURSE_SECTIONS[cur_course_sec].front_stop_dist_mm) {
 		// If in sand, ignore reading until we're out
-		if(in_sand()) {
+		if(sand) {
 			HAL_GPIO_WritePin(GPIOA, LD2_Pin, GPIO_PIN_SET);
 			return;
 		} else {
@@ -241,6 +250,8 @@ void detect_wall_and_turn() {
 		}
 		// Check whether we are in a pit and ignore the reading if so
 		float angle = get_gyro_recent_x_diff();
+
+		log_item(LOG_SOURCE_PIT_DETECT, HAL_GetTick(), angle, volt);
 		if(angle <= -2.0f) {
 			printf("In pit with angle = %d.%d\r\n", (int)(angle), (int)((angle - (int)angle * 1000)));
 			return;
@@ -288,6 +299,8 @@ void course_correction() {
 	uint16_t front = 0;
 	uint16_t rear = 0;
 	get_side_tof_readings(&front, &rear);
+
+	log_item(LOG_SOURCE_SIDE_TOFS, HAL_GetTick(), front, rear);
 
 	if (front > rear) {
 	        if(rear - COURSE_SECTIONS[cur_course_sec].side_dist_mm < (-15)){}
