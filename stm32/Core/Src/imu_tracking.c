@@ -18,9 +18,9 @@ typedef struct {
 	uint32_t ticks;
 } ImuReading;
 
-#define NUM_IMU_READINGS 50
+#define NUM_IMU_READINGS 250
 // We only want to consider readings for the last second 
-#define IMU_RECENT_ANGLE_MAX_TIME 1000
+#define IMU_RECENT_ANGLE_MAX_TIME 5000
 #define IMU_MIN_READING_INTERVAL 25
 
 static ImuReading imu_reading_storage[NUM_IMU_READINGS] = { 0 };

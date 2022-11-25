@@ -89,13 +89,13 @@ static const CourseSec COURSE_SECTIONS[COURSE_NUM_SECTIONS] = {
 	},
 	{
 		.front_stop_dist_mm = STOPPING_DISTANCE_MM + 2*BOARD_SQUARE_SIZE_MM + TOF_STOPPING_DISTANCE_OFFSET_CENTRE,
-		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + 2*BOARD_SQUARE_SIZE_MM - 15,
+		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + 2*BOARD_SQUARE_SIZE_MM - 10,
 		.ticks_before_stop = (0 * COURSE_SEC_LEN_M) / EST_MAX_SPEED * MS_PER_SEC,
 		.speed_scaling_percent = 0.8,
 	},
 	{
 		.front_stop_dist_mm = STOPPING_DISTANCE_MM + 2*BOARD_SQUARE_SIZE_MM + TOF_STOPPING_DISTANCE_OFFSET_CENTRE,
-		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + 2*BOARD_SQUARE_SIZE_MM - 15,
+		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + 2*BOARD_SQUARE_SIZE_MM - 10,
 		.ticks_before_stop = (0 * COURSE_SEC_LEN_M) / EST_MAX_SPEED * MS_PER_SEC,
 		.speed_scaling_percent = 0.8,
 	}
@@ -250,7 +250,7 @@ void detect_wall_and_turn() {
 		float angle = get_gyro_recent_x_diff();
 
 		log_item(LOG_SOURCE_PIT_DETECT, HAL_GetTick(), angle, volt);
-		if(angle <= -1.0f) {
+		if(angle <= -4.0f) {
 			printf("In pit with angle = %d.%d\r\n", (int)(angle), (int)((angle - (int)angle * 1000)));
 			return;
 		} else {
@@ -274,6 +274,7 @@ void detect_wall_and_turn() {
 		}
 
 		cur_course_sec++;
+		// If we're in the section with the pit, we behave differently
 		if (cur_course_sec == 3) {
 			adjust_turn_tof();
 			in_pit_section = true;
@@ -288,11 +289,16 @@ void detect_wall_and_turn() {
 		}
 
 		// Adjust the amount we turn by using the ToF angle
-		uint16_t front, rear;
-		while(!get_tof_status(FRONT_SIDE_TOF) || !get_tof_status(REAR_SIDE_TOF));
-		get_side_tof_readings(&front, &rear);
-		float theta = get_angle_with_wall(front, rear);
-		turn_right_imu(90 - theta);
+		// < 8 so we don't turn in the middle 4 turns
+		if(cur_course_sec < 8) {
+			uint16_t front, rear;
+			while(!get_tof_status(FRONT_SIDE_TOF) || !get_tof_status(REAR_SIDE_TOF));
+			get_side_tof_readings(&front, &rear);
+			float theta = get_angle_with_wall(front, rear);
+			turn_right_imu(90 - theta);
+		} else {
+			turn_right_imu(90);
+		}
 
 		// Reset IMU readings when we turn
 		reset_imu_tracking();
