@@ -10,6 +10,7 @@
  #include "stm32f4xx_hal.h"
  #include "constants.h"
 #include "logger.h"
+#include <string.h>
 
  // IMU reading definition
 typedef struct {
@@ -81,6 +82,10 @@ float get_gyro_recent_x_diff(void) {
 
 
 	return total_angle;
+}
+
+void reset_imu_tracking(void) {
+	memset(imu_reading_storage, 0, sizeof(imu_reading_storage)); 
 }
 
 

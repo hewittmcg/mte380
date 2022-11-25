@@ -248,7 +248,7 @@ void detect_wall_and_turn() {
 		float angle = get_gyro_recent_x_diff();
 
 		log_item(LOG_SOURCE_PIT_DETECT, HAL_GetTick(), angle, volt);
-		if(angle <= -4.0f) {
+		if(angle <= -1.0f) {
 			printf("In pit with angle = %d.%d\r\n", (int)(angle), (int)((angle - (int)angle * 1000)));
 			return;
 		} else {
@@ -257,37 +257,46 @@ void detect_wall_and_turn() {
 
 		stop();
 		// Just testing: check if we're in sand after 300 ms and continue
-		HAL_Delay(300);
+		HAL_Delay(100);
 		if(in_sand(&volt)) {
-			move_forward(BASE_MOTOR_SPEED / 2);
+			move_forward(BASE_MOTOR_SPEED);
 			return;
 		}
 		err = get_tof_rangedata_cts(FORWARD_TOF, &range);
-		int position_difference = range - COURSE_SECTIONS[cur_course_sec].front_stop_dist_mm;
+		int position_difference = range - (COURSE_SECTIONS[cur_course_sec].front_stop_dist_mm - CONTROLLED_STOP_DISTANCE_CORRECTION);
 		if (abs(position_difference) > 2 * CONTROLLED_STOP_RANGE) {
 			add_front_tof_reading(position_difference);
 			controlled_stop();
 		}
-		turn_right_imu(90);
-		
-		// Don't adjust in centre, inaccurate
-		if(cur_course_sec > 6) {
-			uint16_t front_side, rear_side;
-			get_side_tof_readings(&front_side, &rear_side);
-			float theta = get_angle_with_wall(front_side, rear_side);
 
-			if (theta > TOF_ANGLE_CORRECTION_THRESHOLD) {
-				adjust_turn_tof();
-			}
-		}
-
-		// Execute right turn and continue on the next course section
 		cur_course_sec++;
 		if(cur_course_sec >= COURSE_NUM_SECTIONS) {
 			cur_course_sec = 0;
 			stop();
 			while(1);
 		}
+		turn_right_imu(90);
+
+		// Reset IMU readings when we turn
+		reset_imu_tracking();
+		
+		// Don't adjust in centre, inaccurate
+		//if(cur_course_sec > 6) {
+			#if 0
+			uint16_t front_side, rear_side;
+			get_side_tof_readings(&front_side, &rear_side);
+			float theta = get_angle_with_wall(front_side, rear_side);
+			turn_right_imu(theta);
+			#endif
+			/*
+			if (theta > TOF_ANGLE_CORRECTION_THRESHOLD) {
+				adjust_turn_tof();
+			}
+			*/
+		//}
+
+		// Execute right turn and continue on the next course section
+		
 
 		// Reset ticks at start
 		ticks_at_start_of_sec = HAL_GetTick();
@@ -312,60 +321,47 @@ void course_correction() {
 	get_side_tof_readings(&front, &rear);
 
 	log_item(LOG_SOURCE_SIDE_TOFS, HAL_GetTick(), front, rear);
-
+	float x = 0.0;
 	if (front > rear) {
-	        if(rear - COURSE_SECTIONS[cur_course_sec].side_dist_mm < (-15)){}
-	        else if(rear - COURSE_SECTIONS[cur_course_sec].side_dist_mm > (15)){
-	            float x = 0.5;
-	            set_motor_id_speed(FRONT_RIGHT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
-	            set_motor_id_speed(REAR_RIGHT_MOTOR, (int)((1+x)* BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
+		if(calc_centre_dist(front, rear) - COURSE_SECTIONS[cur_course_sec].side_dist_mm < (-15)){
+			x = 0.5;
+		}
+		else if(calc_centre_dist(front, rear) - COURSE_SECTIONS[cur_course_sec].side_dist_mm > (15)){
+			x = -0.9;		
+		}else{
+			x = (float)(front - rear)/(float)front * CORRECTION_FACTOR * -1;
+			if(x < -0.5) {
+				x = -0.5;
+			}
+		}
+	}
 
-	            set_motor_id_speed(FRONT_LEFT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
-	            set_motor_id_speed(REAR_LEFT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
-	        }
-	        else{
-	            float x = (float)(front - rear)/(float)front * CORRECTION_FACTOR;
-	            if(1 - x < 0) {
-	                x = 1;
+	else if (rear > front) {
+	        if(calc_centre_dist(front, rear) - COURSE_SECTIONS[cur_course_sec].side_dist_mm > 15){
+				x = -0.5;			
+			} else if(calc_centre_dist(front, rear) - COURSE_SECTIONS[cur_course_sec].side_dist_mm < -15){
+	            x = 0.9;	        
+			} else{
+	            x = (float)(rear - front)/(float)rear * CORRECTION_FACTOR;
+	            if(0.5 - x < 0) {
+	                x = 0.5;
 	            }
-
-	            set_motor_id_speed(FRONT_RIGHT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
-	            set_motor_id_speed(REAR_RIGHT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
-
-	            set_motor_id_speed(FRONT_LEFT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
-	            set_motor_id_speed(REAR_LEFT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
 	        }
 	    }
+	set_motor_id_speed(FRONT_RIGHT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
+	set_motor_id_speed(REAR_RIGHT_MOTOR, (int)((1-x)* BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
+	set_motor_id_speed(FRONT_LEFT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
+	set_motor_id_speed(REAR_LEFT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
 
-	if (rear > front) {
-	        if(front - COURSE_SECTIONS[cur_course_sec].side_dist_mm > 15){}
-	        else if(front - COURSE_SECTIONS[cur_course_sec].side_dist_mm < - 15){
-	            float x = 0.5;
-	            set_motor_id_speed(FRONT_RIGHT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
-	            set_motor_id_speed(REAR_RIGHT_MOTOR, (int)((1-x)* BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
-
-	            set_motor_id_speed(FRONT_LEFT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
-	            set_motor_id_speed(REAR_LEFT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
-	        }
-	        else{
-	            float x = (float)(rear - front)/(float)rear * CORRECTION_FACTOR;
-	            if(1 - x < 0) {
-	                x = 1;
-	            }
-
-	            set_motor_id_speed(FRONT_RIGHT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
-	            set_motor_id_speed(REAR_RIGHT_MOTOR, (int)((1-x)* BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
-
-	            set_motor_id_speed(FRONT_LEFT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
-	            set_motor_id_speed(REAR_LEFT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
-	        }
-	    }
 	uint16_t dummy;
 	if(in_sand(&dummy)) {
 		set_motor_id_speed(FRONT_RIGHT_MOTOR, 100);
 		set_motor_id_speed(FRONT_LEFT_MOTOR, 100);
+		set_motor_id_speed(REAR_RIGHT_MOTOR, 100);
+		set_motor_id_speed(REAR_LEFT_MOTOR, 100);
 	}
-}
+
+	}
 
 // Gets the angle between the left side of the vehicle and the wall
 float get_angle_with_wall(uint16_t front_side, uint16_t rear_side) {
@@ -461,7 +457,7 @@ void controlled_stop() {
 		total_position_error = get_front_tof_recent_diff();
 	}
 
-	set_motors_to_stop();
+	stop();
 	reset_position_tracking();
 	HAL_Delay(300);
 	return;

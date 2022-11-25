@@ -41,17 +41,17 @@
 
 // Photoresistor bounds
 #define PHOTORESISTOR_ABS_UPPER_BOUND 4200
-#define PHOTORESISTOR_THRESHOLD 2300
+#define PHOTORESISTOR_THRESHOLD 900
 
 // Turning Correction Values
 #define ANGLE_CORRECTION_ADJUSTMENT_THRESHOLD 5
 #define TURN_CORRECTION_MOTOR_SPEED (TURNING_MOTOR_SPEED / 2)
-#define TOF_ANGLE_CORRECTION_THRESHOLD 20
+#define TOF_ANGLE_CORRECTION_THRESHOLD 8
 
 // Controlled Stopping constants
 #define CC_KP 0.003f // Proportional coefficient (unused)
 #define CC_KI 0.005f // Derivative coefficient (unused)
 #define CONTROLLED_STOP_RANGE 25 // TODO: Tuning
-#define CONTROLLED_STOP_DISTANCE_CORRECTION 100
+#define CONTROLLED_STOP_DISTANCE_CORRECTION 130
 
 #endif /* INC_CONSTANTS_H_ */
