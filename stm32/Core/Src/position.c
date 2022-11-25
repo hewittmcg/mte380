@@ -57,47 +57,47 @@ static const CourseSec COURSE_SECTIONS[COURSE_NUM_SECTIONS] = {
 		.speed_scaling_percent = 1.0,
 	},
 	{
-		.front_stop_dist_mm = STOPPING_DISTANCE_MM + BOARD_SQUARE_SIZE_MM + TOF_STOPPING_DISTANCE_OFFSET,
-		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + BOARD_SQUARE_SIZE_MM,
+		.front_stop_dist_mm = STOPPING_DISTANCE_MM + BOARD_SQUARE_SIZE_MM + TOF_STOPPING_DISTANCE_OFFSET_MIDDLE,
+		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + BOARD_SQUARE_SIZE_MM - 15,
 		.ticks_before_stop = (3 * COURSE_SEC_LEN_M) / EST_MAX_SPEED * MS_PER_SEC,
 		.speed_scaling_percent = 1.00,
 		
 	},
 	{
-		.front_stop_dist_mm = STOPPING_DISTANCE_MM + BOARD_SQUARE_SIZE_MM + TOF_STOPPING_DISTANCE_OFFSET,
-		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + BOARD_SQUARE_SIZE_MM,
+		.front_stop_dist_mm = STOPPING_DISTANCE_MM + BOARD_SQUARE_SIZE_MM + TOF_STOPPING_DISTANCE_OFFSET_MIDDLE,
+		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + BOARD_SQUARE_SIZE_MM - 15,
 		.ticks_before_stop = (2 * COURSE_SEC_LEN_M) / EST_MAX_SPEED * MS_PER_SEC,
 		.speed_scaling_percent = 1.00,
 	},
 	{
-		.front_stop_dist_mm = STOPPING_DISTANCE_MM + BOARD_SQUARE_SIZE_MM + TOF_STOPPING_DISTANCE_OFFSET,
-		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + BOARD_SQUARE_SIZE_MM,
+		.front_stop_dist_mm = STOPPING_DISTANCE_MM + BOARD_SQUARE_SIZE_MM + TOF_STOPPING_DISTANCE_OFFSET_MIDDLE,
+		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + BOARD_SQUARE_SIZE_MM - 15,
 		.ticks_before_stop = (2 * COURSE_SEC_LEN_M) / EST_MAX_SPEED * MS_PER_SEC,
 		.speed_scaling_percent = 1.00,
 	},
 	{
-		.front_stop_dist_mm = STOPPING_DISTANCE_MM + 2*BOARD_SQUARE_SIZE_MM + 2*TOF_STOPPING_DISTANCE_OFFSET,
-		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + BOARD_SQUARE_SIZE_MM,
+		.front_stop_dist_mm = STOPPING_DISTANCE_MM + 2*BOARD_SQUARE_SIZE_MM + TOF_STOPPING_DISTANCE_OFFSET_MIDDLE,
+		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + BOARD_SQUARE_SIZE_MM - 15,
 		.ticks_before_stop = (1 * COURSE_SEC_LEN_M) / EST_MAX_SPEED * MS_PER_SEC,
 		.speed_scaling_percent = 1.00,
 	},
 	{
-		.front_stop_dist_mm = STOPPING_DISTANCE_MM + 2*BOARD_SQUARE_SIZE_MM + 2*TOF_STOPPING_DISTANCE_OFFSET,
-		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + 2*BOARD_SQUARE_SIZE_MM,
+		.front_stop_dist_mm = STOPPING_DISTANCE_MM + 2*BOARD_SQUARE_SIZE_MM + TOF_STOPPING_DISTANCE_OFFSET_CENTRE,
+		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + 2*BOARD_SQUARE_SIZE_MM - 15,
 		.ticks_before_stop = (1 * COURSE_SEC_LEN_M) / EST_MAX_SPEED * MS_PER_SEC,
-		.speed_scaling_percent = 1.00,
+		.speed_scaling_percent = 0.8,
 	},
 	{
-		.front_stop_dist_mm = STOPPING_DISTANCE_MM + 2*BOARD_SQUARE_SIZE_MM + 2*TOF_STOPPING_DISTANCE_OFFSET,
-		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + 2*BOARD_SQUARE_SIZE_MM,
+		.front_stop_dist_mm = STOPPING_DISTANCE_MM + 2*BOARD_SQUARE_SIZE_MM + TOF_STOPPING_DISTANCE_OFFSET_CENTRE,
+		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + 2*BOARD_SQUARE_SIZE_MM - 15,
 		.ticks_before_stop = (0 * COURSE_SEC_LEN_M) / EST_MAX_SPEED * MS_PER_SEC,
-		.speed_scaling_percent = 1.00,
+		.speed_scaling_percent = 0.8,
 	},
 	{
-		.front_stop_dist_mm = STOPPING_DISTANCE_MM + 2*BOARD_SQUARE_SIZE_MM + 2*TOF_STOPPING_DISTANCE_OFFSET,
-		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + 2*BOARD_SQUARE_SIZE_MM,
+		.front_stop_dist_mm = STOPPING_DISTANCE_MM + 2*BOARD_SQUARE_SIZE_MM + TOF_STOPPING_DISTANCE_OFFSET_CENTRE,
+		.side_dist_mm = TOF_BASE_SIDE_DIST_MM + 2*BOARD_SQUARE_SIZE_MM - 15,
 		.ticks_before_stop = (0 * COURSE_SEC_LEN_M) / EST_MAX_SPEED * MS_PER_SEC,
-		.speed_scaling_percent = 1.00,
+		.speed_scaling_percent = 0.8,
 	}
 };
 
@@ -109,6 +109,8 @@ static uint32_t ticks_at_start_of_sec = 0;
 
 // Storage for status of whether ToF sensor data ready
 static TofStatus tof_status;
+
+static bool in_pit_section = false;
 
 // ToF sensor device mappings
 static VL53L0X_Dev_t TOF_I2C[NUM_TOFS] = {0};
@@ -262,20 +264,35 @@ void detect_wall_and_turn() {
 			move_forward(BASE_MOTOR_SPEED);
 			return;
 		}
-		err = get_tof_rangedata_cts(FORWARD_TOF, &range);
-		int position_difference = range - (COURSE_SECTIONS[cur_course_sec].front_stop_dist_mm - CONTROLLED_STOP_DISTANCE_CORRECTION);
-		if (abs(position_difference) > 2 * CONTROLLED_STOP_RANGE) {
-			add_front_tof_reading(position_difference);
-			controlled_stop();
+		if (cur_course_sec > 2) {
+			err = get_tof_rangedata_cts(FORWARD_TOF, &range);
+			int position_difference = range - (COURSE_SECTIONS[cur_course_sec].front_stop_dist_mm - CONTROLLED_STOP_DISTANCE_CORRECTION);
+			if (abs(position_difference) > 2 * CONTROLLED_STOP_RANGE) {
+				add_front_tof_reading(position_difference);
+				controlled_stop();
+			}
 		}
 
 		cur_course_sec++;
+		if (cur_course_sec == 3) {
+			adjust_turn_tof();
+			in_pit_section = true;
+		} else {
+			in_pit_section = false;
+		}
+		
 		if(cur_course_sec >= COURSE_NUM_SECTIONS) {
 			cur_course_sec = 0;
 			stop();
 			while(1);
 		}
-		turn_right_imu(90);
+
+		// Adjust the amount we turn by using the ToF angle
+		uint16_t front, rear;
+		while(!get_tof_status(FRONT_SIDE_TOF) || !get_tof_status(REAR_SIDE_TOF));
+		get_side_tof_readings(&front, &rear);
+		float theta = get_angle_with_wall(front, rear);
+		turn_right_imu(90 - theta);
 
 		// Reset IMU readings when we turn
 		reset_imu_tracking();
@@ -348,6 +365,14 @@ void course_correction() {
 	            }
 	        }
 	    }
+	// Handle pits better by not course correcting that much
+	if(in_pit_section) {
+		if(x < 0) {
+			x = MAX(-0.15, x);
+		} else {
+			x = MIN(0.15, x);
+		}
+	}
 	set_motor_id_speed(FRONT_RIGHT_MOTOR, (int)((1-x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
 	set_motor_id_speed(REAR_RIGHT_MOTOR, (int)((1-x)* BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));
 	set_motor_id_speed(FRONT_LEFT_MOTOR, (int)((1+x) * BASE_MOTOR_SPEED * COURSE_SECTIONS[cur_course_sec].speed_scaling_percent));

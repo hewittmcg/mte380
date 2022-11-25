@@ -17,7 +17,8 @@
 #define STOPPING_DISTANCE_MM 200 // original - 240 TODO: Tuning
 #define BOARD_SQUARE_SIZE_MM 305 // original - 300
 #define TOF_BASE_SIDE_DIST_MM 90 // distance from the side TOFs to the edge of the board. Need to revisit.
-#define TOF_STOPPING_DISTANCE_OFFSET 0
+#define TOF_STOPPING_DISTANCE_OFFSET_MIDDLE -15
+#define TOF_STOPPING_DISTANCE_OFFSET_CENTRE 15
 
 // Motor speed values.
 #define BASE_MOTOR_SPEED 85
