@@ -66,7 +66,7 @@ void move_forward(int speed) {
         set_motor_id_speed(FRONT_LEFT_MOTOR, i);
         set_motor_id_speed(REAR_RIGHT_MOTOR, i);
         set_motor_id_speed(REAR_LEFT_MOTOR, i);
-        HAL_Delay(25);
+        HAL_Delay(10);
     }
 }
 
@@ -77,7 +77,7 @@ void move_backward(int speed) {
 		set_motor_id_speed(FRONT_LEFT_MOTOR, i);
 		set_motor_id_speed(REAR_RIGHT_MOTOR, i);
 		set_motor_id_speed(REAR_LEFT_MOTOR, i);
-		HAL_Delay(25);
+		HAL_Delay(10);
 	}
 }
 

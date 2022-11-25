@@ -259,7 +259,7 @@ void detect_wall_and_turn() {
 		}
 
 		stop();
-		// Just testing: check if we're in sand after 300 ms and continue
+		// Just testing: check if we're in sand after 100 ms and continue
 		HAL_Delay(100);
 		if(in_sand(&volt)) {
 			move_forward(BASE_MOTOR_SPEED);
@@ -290,8 +290,8 @@ void detect_wall_and_turn() {
 		}
 
 		// Adjust the amount we turn by using the ToF angle
-		// < 8 so we don't turn in the middle 4 turns
-		if(cur_course_sec < 8) {
+		// < 5 so we don't turn in the middle turns
+		if(cur_course_sec < 5) {
 			uint16_t front, rear;
 			while(!get_tof_status(FRONT_SIDE_TOF) || !get_tof_status(REAR_SIDE_TOF));
 			get_side_tof_readings(&front, &rear);
@@ -393,7 +393,7 @@ void course_correction() {
 		set_motor_id_speed(REAR_LEFT_MOTOR, 100);
 	}
 
-	}
+}
 
 // Gets the angle between the left side of the vehicle and the wall
 float get_angle_with_wall(uint16_t front_side, uint16_t rear_side) {
