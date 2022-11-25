@@ -260,18 +260,9 @@ void detect_wall_and_turn() {
 
 		stop();
 		// Just testing: check if we're in sand after 100 ms and continue
-		HAL_Delay(100);
 		if(in_sand(&volt)) {
 			move_forward(BASE_MOTOR_SPEED);
 			return;
-		}
-		if (cur_course_sec > 2) {
-			err = get_tof_rangedata_cts(FORWARD_TOF, &range);
-			int position_difference = range - (COURSE_SECTIONS[cur_course_sec].front_stop_dist_mm - CONTROLLED_STOP_DISTANCE_CORRECTION);
-			if (abs(position_difference) > 2 * CONTROLLED_STOP_RANGE) {
-				add_front_tof_reading(position_difference);
-				controlled_stop();
-			}
 		}
 
 		cur_course_sec++;
@@ -291,15 +282,7 @@ void detect_wall_and_turn() {
 
 		// Adjust the amount we turn by using the ToF angle
 		// < 5 so we don't turn in the middle turns
-		if(cur_course_sec < 5) {
-			uint16_t front, rear;
-			while(!get_tof_status(FRONT_SIDE_TOF) || !get_tof_status(REAR_SIDE_TOF));
-			get_side_tof_readings(&front, &rear);
-			float theta = get_angle_with_wall(front, rear);
-			turn_right_imu(90 - theta);
-		} else {
-			turn_right_imu(90);
-		}
+		turn_right_imu(90);
 
 		// Reset IMU readings when we turn
 		reset_imu_tracking();
@@ -402,8 +385,6 @@ float get_angle_with_wall(uint16_t front_side, uint16_t rear_side) {
 
 
 void adjust_turn_tof() { 
-	set_motors_to_stop();
-
 	uint16_t front_side = 0;
 	uint16_t rear_side = 0;
 
@@ -436,8 +417,6 @@ void adjust_turn_tof() {
 
 		if (fabs(theta ) < ANGLE_CORRECTION_ADJUSTMENT_THRESHOLD) {
 			set_motors_to_stop();
-			HAL_Delay(25);
-
 			// double check theta in case of drifting
 			get_side_tof_readings(&front_side, &rear_side);
 			theta = get_angle_with_wall(front_side, rear_side);
