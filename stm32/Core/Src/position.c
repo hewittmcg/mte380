@@ -230,17 +230,18 @@ void detect_wall_and_turn() {
 		while(1);
 	}
 
-	uint16_t volt = 0;
-	bool sand;
-	sand = in_sand(&volt);
+	// uint16_t volt = 0;
+	// bool sand;
+	// sand = in_sand(&volt);
 
-	log_item(LOG_SOURCE_FORWARD_TOF, HAL_GetTick(), range, 0);
-	log_item(LOG_SOURCE_PIT_DETECT, HAL_GetTick(), get_gyro_recent_x_diff(), volt);
+	// log_item(LOG_SOURCE_FORWARD_TOF, HAL_GetTick(), range, 0);
+	// log_item(LOG_SOURCE_PIT_DETECT, HAL_GetTick(), get_gyro_recent_x_diff(), volt);
 
 
 	if(range < COURSE_SECTIONS[cur_course_sec].front_stop_dist_mm) {
 		// If in sand, ignore reading until we're out
-		if(sand) {
+		uint16_t volt = 0;
+		if(in_sand(&volt)) {
 			HAL_GPIO_WritePin(GPIOA, LD2_Pin, GPIO_PIN_SET);
 			return;
 		} else {
@@ -249,8 +250,8 @@ void detect_wall_and_turn() {
 		// Check whether we are in a pit and ignore the reading if so
 		float angle = get_gyro_recent_x_diff();
 
-		log_item(LOG_SOURCE_PIT_DETECT, HAL_GetTick(), angle, volt);
-		if(angle <= -4.0f) {
+		// log_item(LOG_SOURCE_PIT_DETECT, HAL_GetTick(), angle, volt);
+		if(angle <= PIT_DETECT_THRESH) {
 			printf("In pit with angle = %d.%d\r\n", (int)(angle), (int)((angle - (int)angle * 1000)));
 			return;
 		} else {
@@ -343,13 +344,13 @@ void course_correction() {
 	uint16_t rear = 0;
 	get_side_tof_readings(&front, &rear);
 
-	log_item(LOG_SOURCE_SIDE_TOFS, HAL_GetTick(), front, rear);
+	// log_item(LOG_SOURCE_SIDE_TOFS, HAL_GetTick(), front, rear);
 	float x = 0.0;
 	if (front > rear) {
-		if(calc_centre_dist(front, rear) - COURSE_SECTIONS[cur_course_sec].side_dist_mm < (-15)){
+		if(calc_centre_dist(front, rear) - COURSE_SECTIONS[cur_course_sec].side_dist_mm < (CORRECTION_RANGE_MIN)){
 			x = 0.5;
 		}
-		else if(calc_centre_dist(front, rear) - COURSE_SECTIONS[cur_course_sec].side_dist_mm > (15)){
+		else if(calc_centre_dist(front, rear) - COURSE_SECTIONS[cur_course_sec].side_dist_mm > (CORRECTION_RANGE_MAX)){
 			x = -0.9;		
 		}else{
 			x = (float)(front - rear)/(float)front * CORRECTION_FACTOR * -1;
@@ -360,9 +361,9 @@ void course_correction() {
 	}
 
 	else if (rear > front) {
-	        if(calc_centre_dist(front, rear) - COURSE_SECTIONS[cur_course_sec].side_dist_mm > 15){
+	        if(calc_centre_dist(front, rear) - COURSE_SECTIONS[cur_course_sec].side_dist_mm > (CORRECTION_RANGE_MAX)){
 				x = -0.5;			
-			} else if(calc_centre_dist(front, rear) - COURSE_SECTIONS[cur_course_sec].side_dist_mm < -15){
+			} else if(calc_centre_dist(front, rear) - COURSE_SECTIONS[cur_course_sec].side_dist_mm <(CORRECTION_RANGE_MIN)){
 	            x = 0.9;	        
 			} else{
 	            x = (float)(rear - front)/(float)rear * CORRECTION_FACTOR;
@@ -409,7 +410,7 @@ void adjust_turn_tof() {
 	get_side_tof_readings(&front_side, &rear_side);
 	float theta = get_angle_with_wall(front_side, rear_side);
 
-	while (fabs(theta ) > ANGLE_CORRECTION_ADJUSTMENT_THRESHOLD) { // only correct if off by ANGLE_CORRECTION_ADJUSTMENT_THRESHOLD degrees, TODO: Tuning
+	while (fabs(theta) > ANGLE_CORRECTION_ADJUSTMENT_THRESHOLD) { // only correct if off by ANGLE_CORRECTION_ADJUSTMENT_THRESHOLD degrees, TODO: Tuning
 		int turning_speed = TURNING_MOTOR_SPEED;
 		if (theta < TOF_ANGLE_CORRECTION_THRESHOLD) {
 			// Go slower if angle to wall is small
@@ -490,7 +491,7 @@ void controlled_stop() {
 
 	stop();
 	reset_position_tracking();
-	HAL_Delay(300);
+	//HAL_Delay(300);
 	return;
 }
 

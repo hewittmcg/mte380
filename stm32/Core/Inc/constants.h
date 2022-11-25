@@ -11,7 +11,7 @@
 #define MS_PER_SEC 1000.0
 #define RADIONS_TO_DEGREES 57.2958
 
-#define SIDE_TOF_SEPARATION_MM 177 // Distance between the two side ToF sensors. TODO revise this
+#define SIDE_TOF_SEPARATION_MM 165 // Distance between the two side ToF sensors. TODO revise this
 
 // ToF calibration info.
 #define STOPPING_DISTANCE_MM 200 // original - 240 TODO: Tuning
@@ -39,6 +39,11 @@
 
 // Course correction values
 #define CORRECTION_FACTOR 10
+#define CORRECTION_RANGE_MIN -15
+#define CORRECTION_RANGE_MAX 15
+
+// Pit Detection values
+#define PIT_DETECT_THRESH -4.0f
 
 // Photoresistor bounds
 #define PHOTORESISTOR_ABS_UPPER_BOUND 4200

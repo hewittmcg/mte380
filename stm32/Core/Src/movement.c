@@ -66,7 +66,7 @@ void move_forward(int speed) {
         set_motor_id_speed(FRONT_LEFT_MOTOR, i);
         set_motor_id_speed(REAR_RIGHT_MOTOR, i);
         set_motor_id_speed(REAR_LEFT_MOTOR, i);
-        HAL_Delay(25);
+        HAL_Delay(15);
     }
 }
 
@@ -77,7 +77,7 @@ void move_backward(int speed) {
 		set_motor_id_speed(FRONT_LEFT_MOTOR, i);
 		set_motor_id_speed(REAR_RIGHT_MOTOR, i);
 		set_motor_id_speed(REAR_LEFT_MOTOR, i);
-		HAL_Delay(25);
+		HAL_Delay(15);
 	}
 }
 
@@ -96,7 +96,7 @@ void turn_right() {
 
 void turn_right_imu(uint16_t degrees) {
 	// Read from the IMU and numerically integrate to get the number of degrees
-  log_item(LOG_SOURCE_TURN_STARTING, HAL_GetTick(), 0, 0);
+  // log_item(LOG_SOURCE_TURN_STARTING, HAL_GetTick(), 0, 0);
   axises gyro_reading;
   float degrees_turned = 0;
 
@@ -138,7 +138,7 @@ void turn_right_imu(uint16_t degrees) {
 		  // If we've overshot the target, turn back to it
 		  turning_speed = IMU_TURN_CORRECTION_SPEED * (error > 0 ? 1 : -1);
 	  }
-	  log_item(LOG_SOURCE_IMU_TURN, HAL_GetTick(), cur_degrees, degrees_turned);
+	  // log_item(LOG_SOURCE_IMU_TURN, HAL_GetTick(), cur_degrees, degrees_turned);
 
 	  // Scale motors as we reach the reading
 	  set_motor_id_speed(FRONT_RIGHT_MOTOR, (-1)*turning_speed);
