@@ -15,4 +15,6 @@ void add_gyro_x_reading(void);
 // numerical integration.
 float get_gyro_recent_x_diff(void);
 
+void reset_imu_tracking(void);
+
 #endif /* INC_IMU_TRACKING_H_ */

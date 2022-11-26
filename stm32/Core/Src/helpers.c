@@ -1,4 +1,5 @@
 #include "helpers.h"
+#include "constants.h"
 
 // Indicates the start of a critical section. Disables interrupts and returns whether interrupts were previously enabled.
 bool critical_section_start(void) {

@@ -32,6 +32,7 @@
 #include "ICM20948.h"
 #include "logger.h"
 #include "imu_tracking.h"
+#include "photoresistor.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -189,6 +190,7 @@ int main(void)
 	{
 		// Wait for button press before starting to move.
 		while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
+
 		HAL_Delay(1000);
 		move_forward(BASE_MOTOR_SPEED);
 

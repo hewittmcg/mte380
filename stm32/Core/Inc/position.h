@@ -36,4 +36,10 @@ void detect_wall_and_turn();
 
 void course_correction();
 
+float get_angle_with_wall(uint16_t front_side, uint16_t rear_side);
+
+void adjust_turn_tof();
+
+void controlled_stop();
+
 int get_tof_status(TofSensor sensor);

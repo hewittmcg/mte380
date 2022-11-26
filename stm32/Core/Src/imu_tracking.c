@@ -10,6 +10,7 @@
  #include "stm32f4xx_hal.h"
  #include "constants.h"
 #include "logger.h"
+#include <string.h>
 
  // IMU reading definition
 typedef struct {
@@ -17,9 +18,9 @@ typedef struct {
 	uint32_t ticks;
 } ImuReading;
 
-#define NUM_IMU_READINGS 50
+#define NUM_IMU_READINGS 250
 // We only want to consider readings for the last second 
-#define IMU_RECENT_ANGLE_MAX_TIME 1000
+#define IMU_RECENT_ANGLE_MAX_TIME 5000
 #define IMU_MIN_READING_INTERVAL 25
 
 static ImuReading imu_reading_storage[NUM_IMU_READINGS] = { 0 };
@@ -46,7 +47,7 @@ void add_gyro_x_reading(void) {
 	axises accel;
 	icm20948_accel_read(&accel);
 
-	log_item(LOG_SOURCE_IMU, HAL_GetTick(), data.x, accel.z);
+	// log_item(LOG_SOURCE_IMU, HAL_GetTick(), data.x, accel.z);
 }
 
 // Calculate the recent x angle across the stored IMU readings.
@@ -81,6 +82,10 @@ float get_gyro_recent_x_diff(void) {
 
 
 	return total_angle;
+}
+
+void reset_imu_tracking(void) {
+	memset(imu_reading_storage, 0, sizeof(imu_reading_storage)); 
 }
 
 
