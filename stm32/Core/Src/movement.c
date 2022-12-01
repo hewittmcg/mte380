@@ -96,7 +96,7 @@ void turn_right() {
 
 void turn_right_imu(uint16_t degrees) {
 	// Read from the IMU and numerically integrate to get the number of degrees
-  // log_item(LOG_SOURCE_TURN_STARTING, HAL_GetTick(), 0, 0);
+  log_item(LOG_SOURCE_TURN_STARTING, HAL_GetTick(), 0, 0);
   axises gyro_reading;
   float degrees_turned = 0;
 
@@ -113,10 +113,12 @@ void turn_right_imu(uint16_t degrees) {
 
   set_motor_id_speed(FRONT_LEFT_MOTOR, TURNING_MOTOR_SPEED);
   set_motor_id_speed(REAR_LEFT_MOTOR, TURNING_MOTOR_SPEED);
+  uint32_t prev_log_time = 0;
 
   // Turn until the error is minimized and we have been turning for at least IMU_TURN_MIN_TIME
   // This is slow, but should be quite accurate for the time being.
   while(abs(error) > IMU_TURN_ERROR_THRESH || prev_time - start_time < IMU_TURN_MIN_TIME) {
+    
 	  // TODO: we only need to read the z value here, not all three.
 	  icm20948_gyro_read_dps(&gyro_reading);
 	  float cur_time = HAL_GetTick();
@@ -138,7 +140,10 @@ void turn_right_imu(uint16_t degrees) {
 		  // If we've overshot the target, turn back to it
 		  turning_speed = IMU_TURN_CORRECTION_SPEED * (error > 0 ? 1 : -1);
 	  }
-	  // log_item(LOG_SOURCE_IMU_TURN, HAL_GetTick(), cur_degrees, degrees_turned);
+    if(cur_time > prev_log_time + 100) {
+      log_item(LOG_SOURCE_IMU_TURN, HAL_GetTick(), cur_degrees, degrees_turned);
+      prev_log_time = cur_time;
+    }
 
 	  // Scale motors as we reach the reading
 	  set_motor_id_speed(FRONT_RIGHT_MOTOR, (-1)*turning_speed);

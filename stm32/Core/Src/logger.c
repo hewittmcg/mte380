@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include "stm32f4xx_hal.h"
 
-#define NUM_LOGS 3000
+#define NUM_LOGS 5000
 static LogItem logs[NUM_LOGS];
 
 // Current index to log to.
