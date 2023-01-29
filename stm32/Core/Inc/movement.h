@@ -14,6 +14,12 @@ typedef enum {
 // Initialize the motor controllers with the given turning speed and base speed.
 void movement_init(MotorController *mcs);
 
+// Set the motor speed of the given motor ID.
+void set_motor_id_speed(Motor motor, int speed);
+
+// Set all motor speed to 0
+void set_motors_to_stop();
+
 // Move the robot forward, starting from 0 and slowly accelerating to the speed %.
 void move_forward(int speed);
 
@@ -22,6 +28,9 @@ void move_backward(int speed);
 
 // Turn the robot 90 degrees to the right.
 void turn_right();
+
+// Turn to degrees using the IMU for positioning.
+void turn_right_imu(uint16_t degrees);
 
 // Turn the robot 90 degrees to the left.
 void turn_left();

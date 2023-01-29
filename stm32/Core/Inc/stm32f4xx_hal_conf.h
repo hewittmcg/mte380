@@ -36,7 +36,7 @@
   */
 #define HAL_MODULE_ENABLED
 
-  /* #define HAL_ADC_MODULE_ENABLED   */
+  #define HAL_ADC_MODULE_ENABLED
 /* #define HAL_CRYP_MODULE_ENABLED   */
 /* #define HAL_CAN_MODULE_ENABLED   */
 /* #define HAL_CRC_MODULE_ENABLED   */
@@ -75,7 +75,7 @@
 /* #define HAL_QSPI_MODULE_ENABLED   */
 /* #define HAL_QSPI_MODULE_ENABLED   */
 /* #define HAL_CEC_MODULE_ENABLED   */
-#define HAL_FMPI2C_MODULE_ENABLED
+/* #define HAL_FMPI2C_MODULE_ENABLED   */
 /* #define HAL_FMPSMBUS_MODULE_ENABLED   */
 /* #define HAL_SPDIFRX_MODULE_ENABLED   */
 /* #define HAL_DFSDM_MODULE_ENABLED   */

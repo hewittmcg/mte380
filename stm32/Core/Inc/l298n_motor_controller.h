@@ -44,7 +44,7 @@ typedef struct {
 bool set_motor_direction(MotorController *mc, MotorDir dir);
 
 // Set the speed of the motor using PWM. Returns true if successful, false otherwise.
-bool set_motor_speed(MotorController *mc, int8_t speed_percent);
+bool set_motor_speed(MotorController *mc, int speed_percent);
 
 // Get the speed of the motor currently
 int8_t get_motor_speed(MotorController *mc);

@@ -28,10 +28,18 @@ void HAL_GPIO_EXTI_Callback(uint16_t gpio_pin);
 
 void TOF_Init(I2C_HandleTypeDef *hi2c, TofSensor sensor);
 
+void calibrate_tof(int32_t *forward_offset, int32_t *fs_offset, int32_t *rs_offset);
+
 VL53L0X_Error get_tof_rangedata_cts(TofSensor sensor, uint16_t *range);
 
 void detect_wall_and_turn();
 
-void course_correction(MotorController controllers[]);
+void course_correction();
 
-int getTofStatus(TofSensor sensor);
+float get_angle_with_wall(uint16_t front_side, uint16_t rear_side);
+
+void adjust_turn_tof();
+
+void controlled_stop();
+
+int get_tof_status(TofSensor sensor);
