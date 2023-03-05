@@ -2,7 +2,7 @@
 ## Background
 This repository holds the software developed for MTE380, our third-year design project course. In this iteration of the course, the primary objective was to develop a robot to successfully navigate a 2m x 2m course comprised of various types of terrain. 
 
-[Watch it in action here!](https://drive.google.com/file/d/1semjB3284f4LjIQnWhxCoVaLQFxuySnK/view?usp=sharing)
+[Watch it in action here!](https://www.youtube.com/watch?v=6tEmZ63DPsY)
 
 ## Hardware
 
