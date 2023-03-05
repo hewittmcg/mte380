@@ -47,4 +47,4 @@ The driver used for the VL53L0X ToF sensor can be found [here](https://github.co
 
 The driver used for the ICM20948 IMU can be found [here](https://github.com/mokhwasomssi/stm32_hal_icm20948).
 
-
+These drivers are licensed under their own respective license terms rather than those of this repository.
