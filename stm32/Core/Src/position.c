@@ -230,18 +230,17 @@ void detect_wall_and_turn() {
 		while(1);
 	}
 
-	// uint16_t volt = 0;
-	// bool sand;
-	// sand = in_sand(&volt);
+	uint16_t volt = 0;
+	bool sand;
+	sand = in_sand(&volt);
 
-	// log_item(LOG_SOURCE_FORWARD_TOF, HAL_GetTick(), range, 0);
-	// log_item(LOG_SOURCE_PIT_DETECT, HAL_GetTick(), get_gyro_recent_x_diff(), volt);
+	log_item(LOG_SOURCE_FORWARD_TOF, HAL_GetTick(), range, 0);
+	log_item(LOG_SOURCE_PIT_DETECT, HAL_GetTick(), get_gyro_recent_x_diff(), volt);
 
 
 	if(range < COURSE_SECTIONS[cur_course_sec].front_stop_dist_mm) {
 		// If in sand, ignore reading until we're out
-		uint16_t volt = 0;
-		if(in_sand(&volt)) {
+		if(sand) {
 			HAL_GPIO_WritePin(GPIOA, LD2_Pin, GPIO_PIN_SET);
 			return;
 		} else {
@@ -250,7 +249,7 @@ void detect_wall_and_turn() {
 		// Check whether we are in a pit and ignore the reading if so
 		float angle = get_gyro_recent_x_diff();
 
-		// log_item(LOG_SOURCE_PIT_DETECT, HAL_GetTick(), angle, volt);
+		log_item(LOG_SOURCE_PIT_DETECT, HAL_GetTick(), angle, volt);
 		if(angle <= PIT_DETECT_THRESH) {
 			printf("In pit with angle = %d.%d\r\n", (int)(angle), (int)((angle - (int)angle * 1000)));
 			return;
@@ -286,7 +285,10 @@ void detect_wall_and_turn() {
 		if(cur_course_sec >= COURSE_NUM_SECTIONS) {
 			cur_course_sec = 0;
 			stop();
-			while(1);
+			while(1) {
+				while(HAL_GPIO_ReadPin(Pushbutton_GPIO_Port, Pushbutton_Pin) == 1);
+				log_output();
+			}
 		}
 
 		// Adjust the amount we turn by using the ToF angle
@@ -344,7 +346,7 @@ void course_correction() {
 	uint16_t rear = 0;
 	get_side_tof_readings(&front, &rear);
 
-	// log_item(LOG_SOURCE_SIDE_TOFS, HAL_GetTick(), front, rear);
+	log_item(LOG_SOURCE_SIDE_TOFS, HAL_GetTick(), front, rear);
 	float x = 0.0;
 	if (front > rear) {
 		if(calc_centre_dist(front, rear) - COURSE_SECTIONS[cur_course_sec].side_dist_mm < (CORRECTION_RANGE_MIN)){

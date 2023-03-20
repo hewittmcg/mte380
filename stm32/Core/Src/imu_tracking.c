@@ -47,7 +47,7 @@ void add_gyro_x_reading(void) {
 	axises accel;
 	icm20948_accel_read(&accel);
 
-	// log_item(LOG_SOURCE_IMU, HAL_GetTick(), data.x, accel.z);
+	log_item(LOG_SOURCE_IMU, HAL_GetTick(), data.x, accel.z);
 }
 
 // Calculate the recent x angle across the stored IMU readings.
